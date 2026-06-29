@@ -1,0 +1,32 @@
+services:
+  web:
+    build:
+      context: ./apps/web
+    ports:
+      - "4321:4321"
+    environment:
+      PUBLIC_API_URL: http://localhost:8000
+    depends_on:
+      - api
+
+  api:
+    build:
+      context: ./apps/api
+    ports:
+      - "8000:8000"
+    environment:
+      MONGODB_URL: mongodb://mongo:27017
+      MONGODB_DB: futuresight
+      SCRYFALL_BASE_URL: https://api.scryfall.com
+    depends_on:
+      - mongo
+
+  mongo:
+    image: mongo:7
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+
+volumes:
+  mongo_data:

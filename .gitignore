@@ -1,0 +1,16 @@
+.DS_Store
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Node / Astro
+node_modules/
+dist/
+.astro/
+
+# Docker / local data
+mongo_data/
