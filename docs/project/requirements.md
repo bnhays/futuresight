@@ -1,0 +1,25 @@
+# Requirements
+
+## Functional Requirements
+- The system should let a user create, view, and edit decks.
+- The system should check whether a deck is legal for a selected format.
+- The system should store deck versions as separate records so users can compare changes over time.
+- The system should let users log tournament results, matchup notes, and related observations.
+- The system should show basic deck statistics such as mana curve and color distribution.
+
+## Data Requirements
+- The system needs to store deck metadata, card lists, format information, and version history.
+- The system needs to track matchup results, tournament dates, notes, and opponent or archetype information.
+- The system needs to retrieve card data from Scryfall and cache it locally to reduce repeated API calls.
+- The system needs to keep versioned deck records tied together with a shared deck identifier and version metadata such as timestamps.
+
+## Non-Functional Requirements
+- The project should be understandable to a new user and should not overload them with information.
+- The project should provide clear descriptions of violations when a deck is illegal or when saved data changes.
+- The project should be maintainable enough to support future features like deck branching and deeper analysis.
+- The project should work reliably with locally cached card data to account for when external API access is slow or unavailable.
+
+## Out of Scope for the First Version
+- This version will not include simulated opening hands or full playtesting automation.
+- This version will not include a full deck-branching tree interface.
+- This version will not include advanced statistical analysis beyond the basic deck summaries listed above.
