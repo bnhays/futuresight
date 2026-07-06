@@ -18,6 +18,39 @@ The project is structured as a small full-stack monorepo:
 - `apps/api`: FastAPI backend for deck/version logic, validation, statistics, and Scryfall coordination.
 - `mongo`: MongoDB service managed through Docker Compose.
 
+### Makefile Commands
+
+The root `Makefile` wraps the common project workflows:
+
+```sh
+make help
+```
+
+Docker Compose commands:
+
+```sh
+make up
+make up-build
+make down
+make logs
+```
+
+Local API commands:
+
+```sh
+make api-install
+make api-dev
+```
+
+Local frontend commands:
+
+```sh
+make web-install
+make web-dev
+make web-build
+make web-preview
+```
+
 ### Run With Docker Compose
 
 ```sh
