@@ -1,0 +1,325 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+---
+
+<BaseLayout title="Imported Deck | Future Sight">
+  <section class="deck-view-shell">
+    <div class="deck-view-header">
+      <div>
+        <h1 id="deck-title">Imported Deck</h1>
+        <p id="import-meta">Loading imported deck...</p>
+      </div>
+      <a class="button-link muted" href="/">Back</a>
+    </div>
+
+    <section id="deck-panel" class="deck-panel" hidden>
+      <div id="deck-sections" class="deck-sections"></div>
+    </section>
+
+    <aside id="inspect-panel" class="inspect-panel" hidden>
+      <button id="close-inspect" class="icon-button" type="button" aria-label="Close card inspection">x</button>
+      <div id="inspect-content"></div>
+    </aside>
+  </section>
+
+  <script>
+    const STORAGE_KEY = "future-sight:last-import";
+    const COLOR_ORDER = ["W", "U", "B", "R", "G", "C"];
+    const COLOR_LABELS = {
+      W: "White",
+      U: "Blue",
+      B: "Black",
+      R: "Red",
+      G: "Green",
+      C: "Colorless",
+    };
+
+    const deckTitle = document.querySelector("#deck-title");
+    const importMeta = document.querySelector("#import-meta");
+    const deckViewShell = document.querySelector(".deck-view-shell");
+    const deckPanel = document.querySelector("#deck-panel");
+    const deckSections = document.querySelector("#deck-sections");
+    const inspectPanel = document.querySelector("#inspect-panel");
+    const inspectContent = document.querySelector("#inspect-content");
+    const closeInspect = document.querySelector("#close-inspect");
+
+    function readImport() {
+      const raw = sessionStorage.getItem(STORAGE_KEY);
+      if (!raw) return null;
+
+      try {
+        return JSON.parse(raw);
+      } catch {
+        return null;
+      }
+    }
+
+    function groupBySection(cards) {
+      return cards.reduce((groups, card) => {
+        const section = card.section || "mainboard";
+        groups[section] = groups[section] || [];
+        groups[section].push(card);
+        return groups;
+      }, {});
+    }
+
+    function sectionLabel(section) {
+      if (section === "sideboard") return "Sideboard";
+      return "Mainboard";
+    }
+
+    function formatFormat(format) {
+      if (!format) return "";
+      return format.charAt(0).toUpperCase() + format.slice(1);
+    }
+
+    function getIdentityColors(cards) {
+      const colors = new Set();
+      cards.forEach((card) => {
+        const identity = card.card_data?.color_identity || [];
+        identity.forEach((color) => colors.add(color));
+      });
+      return COLOR_ORDER.filter((color) => colors.has(color));
+    }
+
+    function renderColorSquares(colors) {
+      const wrapper = document.createElement("span");
+      wrapper.className = "color-squares";
+
+      COLOR_ORDER.filter((color) => colors?.includes(color)).forEach((color) => {
+        const square = document.createElement("span");
+        square.className = `color-square color-${color.toLowerCase()}`;
+        square.title = COLOR_LABELS[color] || color;
+        wrapper.append(square);
+      });
+
+      return wrapper;
+    }
+
+    function renderTitle(deck) {
+      deckTitle.textContent = "";
+      const colors = renderColorSquares(getIdentityColors(deck.cards || []));
+      const titleText = document.createElement("span");
+      titleText.textContent = deck.name || "Imported Deck";
+
+      if (colors.children.length) {
+        deckTitle.append(colors);
+      }
+      deckTitle.append(titleText);
+      importMeta.textContent = `Format: ${formatFormat(deck.format || "modern")}`;
+    }
+
+    function renderWarnings(warnings) {
+      const activeWarnings = warnings.filter((warning) => String(warning || "").trim());
+      document.querySelectorAll(".message-panel").forEach((panel) => panel.remove());
+      if (!activeWarnings.length) return;
+
+      const warningsPanel = document.createElement("section");
+      warningsPanel.className = "message-panel";
+
+      const heading = document.createElement("h2");
+      heading.textContent = "Warnings";
+      warningsPanel.append(heading);
+
+      const warningsList = document.createElement("ul");
+
+      activeWarnings.forEach((warning) => {
+        const item = document.createElement("li");
+        item.textContent = warning;
+        warningsList.append(item);
+      });
+
+      warningsPanel.append(warningsList);
+      deckViewShell.insertBefore(warningsPanel, deckPanel);
+    }
+
+    function renderManaCost(manaCost) {
+      const wrapper = document.createElement("span");
+      wrapper.className = "mana-cost";
+      const symbols = String(manaCost || "").match(/\{[^}]+\}/g) || [];
+
+      if (!symbols.length && manaCost) {
+        wrapper.textContent = manaCost;
+        return wrapper;
+      }
+
+      symbols.forEach((symbol) => {
+        const value = symbol.replace(/[{}]/g, "");
+        const symbolEl = document.createElement("span");
+        const classKey = /^[WUBRGC]$/.test(value) ? value.toLowerCase() : "generic";
+        symbolEl.className = `mana-symbol mana-${classKey}`;
+        symbolEl.textContent = value;
+        symbolEl.title = value;
+        wrapper.append(symbolEl);
+      });
+
+      return wrapper;
+    }
+
+    function renderDeck(cards) {
+      deckSections.innerHTML = "";
+      deckPanel.hidden = !cards.length;
+
+      const groups = groupBySection(cards);
+      ["mainboard", "sideboard"].forEach((section) => {
+        const cardsInSection = groups[section] || [];
+        if (!cardsInSection.length) return;
+
+        const sectionEl = document.createElement("section");
+        sectionEl.className = "deck-section";
+
+        const heading = document.createElement("h2");
+        heading.textContent = sectionLabel(section);
+        sectionEl.append(heading);
+
+        const table = document.createElement("table");
+        table.className = "deck-table";
+
+        const thead = document.createElement("thead");
+        thead.innerHTML = "<tr><th>Qty</th><th>Name</th><th>Mana</th><th>Type</th><th>MV</th></tr>";
+        table.append(thead);
+
+        const tbody = document.createElement("tbody");
+        cardsInSection.forEach((card) => {
+          const data = card.card_data || {};
+          const row = document.createElement("tr");
+          row.className = "card-row";
+          row.tabIndex = 0;
+          row.setAttribute("role", "button");
+          row.setAttribute("aria-label", `Inspect ${data.name || card.name}`);
+          row.addEventListener("click", (event) => {
+            event.stopPropagation();
+            showInspect(card);
+          });
+          row.addEventListener("keydown", (event) => {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              showInspect(card);
+            }
+          });
+
+          const quantity = document.createElement("td");
+          quantity.className = "card-qty";
+          quantity.textContent = String(card.quantity);
+
+          const name = document.createElement("td");
+          const nameWrap = document.createElement("span");
+          nameWrap.className = "card-name";
+          const nameText = document.createElement("span");
+          nameText.textContent = data.name || card.name;
+          nameWrap.append(nameText, renderColorSquares(data.color_identity || []));
+          name.append(nameWrap);
+
+          const mana = document.createElement("td");
+          mana.append(renderManaCost(data.mana_cost || ""));
+
+          const type = document.createElement("td");
+          type.textContent = data.type_line || "";
+
+          const mv = document.createElement("td");
+          mv.textContent = data.cmc ?? "";
+
+          row.append(quantity, name, mana, type, mv);
+          tbody.append(row);
+        });
+        table.append(tbody);
+        sectionEl.append(table);
+        deckSections.append(sectionEl);
+      });
+    }
+
+    function showInspect(card) {
+      const data = card.card_data || {};
+      inspectContent.innerHTML = "";
+
+      const title = document.createElement("h2");
+      title.textContent = data.name || card.name;
+      inspectContent.append(title);
+
+      if (data.image_uri) {
+        const image = document.createElement("img");
+        image.src = data.image_uri;
+        image.alt = data.name || card.name;
+        inspectContent.append(image);
+      }
+
+      const details = document.createElement("dl");
+      [
+        ["Quantity", card.quantity],
+        ["Type", data.type_line || "Unknown"],
+        ["Mana Value", data.cmc ?? ""],
+      ].forEach(([label, value]) => {
+        const dt = document.createElement("dt");
+        dt.textContent = label;
+        const dd = document.createElement("dd");
+        dd.textContent = String(value);
+        details.append(dt, dd);
+      });
+
+      const manaDt = document.createElement("dt");
+      manaDt.textContent = "Mana Cost";
+      const manaDd = document.createElement("dd");
+      manaDd.append(renderManaCost(data.mana_cost || ""));
+      details.append(manaDt, manaDd);
+
+      const colorDt = document.createElement("dt");
+      colorDt.textContent = "Color Identity";
+      const colorDd = document.createElement("dd");
+      colorDd.append(renderColorSquares(data.color_identity || []));
+      details.append(colorDt, colorDd);
+      inspectContent.append(details);
+
+      if (data.oracle_text) {
+        const oracleHeading = document.createElement("h3");
+        oracleHeading.textContent = "Oracle Text:";
+        inspectContent.append(oracleHeading);
+
+        const oracle = document.createElement("p");
+        oracle.className = "oracle-text";
+        oracle.textContent = data.oracle_text;
+        inspectContent.append(oracle);
+      }
+
+      if (data.scryfall_uri) {
+        const link = document.createElement("a");
+        link.className = "scryfall-link";
+        link.href = data.scryfall_uri;
+        link.target = "_blank";
+        link.rel = "noreferrer";
+        link.textContent = "View On Scryfall";
+        inspectContent.append(link);
+      }
+
+      inspectPanel.hidden = false;
+    }
+
+    closeInspect.addEventListener("click", (event) => {
+      event.stopPropagation();
+      inspectPanel.hidden = true;
+    });
+
+    inspectPanel.addEventListener("click", (event) => {
+      event.stopPropagation();
+    });
+
+    document.addEventListener("click", () => {
+      if (!inspectPanel.hidden) {
+        inspectPanel.hidden = true;
+      }
+    });
+
+    const importedDeck = readImport();
+    const cards = importedDeck?.cards || [];
+    const warnings = importedDeck?.warnings || [];
+
+    if (!importedDeck || !cards.length) {
+      deckTitle.textContent = "Imported Deck";
+      importMeta.textContent = "No decklist is currently loaded. Import a decklist to view parsed cards.";
+      deckPanel.hidden = true;
+    } else {
+      renderTitle(importedDeck);
+      renderWarnings(warnings);
+      renderDeck(cards);
+    }
+  </script>
+</BaseLayout>

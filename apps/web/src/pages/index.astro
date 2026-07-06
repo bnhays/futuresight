@@ -3,8 +3,109 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 ---
 
 <BaseLayout title="Future Sight">
-  <section>
-    <h1>Future Sight</h1>
-    <p>Minimal Astro scaffold for the Future Sight frontend.</p>
+  <section class="import-shell">
+    <div class="import-header">
+      <h1>Import Decklist</h1>
+    </div>
+
+    <form id="import-form" class="import-form">
+      <div class="import-fields">
+        <label>
+          <span>Deck Name</span>
+          <input id="deck-name" name="name" type="text" autocomplete="off" placeholder="Izzet Phoenix" />
+        </label>
+
+        <label>
+          <span>Format</span>
+          <select id="deck-format" name="format">
+            <option value="modern" selected>Modern</option>
+            <option value="standard">Standard</option>
+            <option value="pioneer">Pioneer</option>
+            <option value="legacy">Legacy</option>
+            <option value="vintage">Vintage</option>
+            <option value="pauper">Pauper</option>
+            <option value="commander">Commander</option>
+          </select>
+        </label>
+      </div>
+
+      <label for="decklist">Decklist</label>
+      <textarea
+        id="decklist"
+        name="decklist"
+        rows="16"
+        spellcheck="false"
+        placeholder={`4 Lightning Bolt
+4x Counterspell
+Sideboard
+2 Negate`}
+      ></textarea>
+      <div class="form-actions">
+        <button id="import-button" type="submit">Import</button>
+        <span id="import-status" role="status" aria-live="polite"></span>
+      </div>
+    </form>
   </section>
+
+  <script>
+    const API_URL = import.meta.env.PUBLIC_API_URL || "http://localhost:8000";
+    const STORAGE_KEY = "future-sight:last-import";
+
+    const form = document.querySelector("#import-form");
+    const deckName = document.querySelector("#deck-name");
+    const deckFormat = document.querySelector("#deck-format");
+    const textarea = document.querySelector("#decklist");
+    const button = document.querySelector("#import-button");
+    const status = document.querySelector("#import-status");
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const decklist = textarea.value.trim();
+      if (!decklist) {
+        status.textContent = "Paste a decklist first.";
+        return;
+      }
+
+      button.disabled = true;
+      status.textContent = "Parsing...";
+
+      try {
+        const response = await fetch(`${API_URL}/decks/import`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: deckName.value.trim(),
+            format: deckFormat.value,
+            decklist,
+          }),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.detail || "Could not import decklist.");
+        }
+
+        sessionStorage.setItem(
+          STORAGE_KEY,
+          JSON.stringify({
+            importedAt: new Date().toISOString(),
+            rawDecklist: decklist,
+            name: deckName.value.trim(),
+            format: deckFormat.value,
+            ...data,
+          }),
+        );
+        if (data.cards?.length) {
+          status.textContent = "Parsed. Opening deck view...";
+          window.location.href = "/decks/imported";
+        } else {
+          status.textContent = "No cards found.";
+        }
+      } catch (error) {
+        status.textContent = error instanceof Error ? error.message : "Could not import decklist.";
+      } finally {
+        button.disabled = false;
+      }
+    });
+  </script>
 </BaseLayout>
