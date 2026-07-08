@@ -30,8 +30,19 @@ class ParsedDeckCard(BaseModel):
     card_data: ImportedCardData | None = None
 
 
+class DeckImportMetrics(BaseModel):
+    unique_card_names: int = 0
+    database_reads: int = 0
+    cache_hits: int = 0
+    cache_misses: int = 0
+    scryfall_calls: int = 0
+    scryfall_bulk_calls: int = 0
+    scryfall_fuzzy_calls: int = 0
+
+
 class DeckDetail(DeckSummary):
     cards: list[ParsedDeckCard] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
+    import_metrics: DeckImportMetrics | None = None
     raw_decklist: str | None = None
     created_at: str | None = None

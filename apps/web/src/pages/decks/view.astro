@@ -12,6 +12,11 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       <a class="button-link muted" href="/">Back</a>
     </div>
 
+    <section id="import-metrics-panel" class="import-metrics-panel" hidden>
+      <h2>Import Stats</h2>
+      <dl id="import-metrics-list"></dl>
+    </section>
+
     <section id="deck-panel" class="deck-panel" hidden>
       <div id="deck-sections" class="deck-sections"></div>
     </section>
@@ -38,6 +43,8 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     const deckId = new URLSearchParams(window.location.search).get("id");
     const deckTitle = document.querySelector("#deck-title");
     const deckMeta = document.querySelector("#deck-meta");
+    const importMetricsPanel = document.querySelector("#import-metrics-panel");
+    const importMetricsList = document.querySelector("#import-metrics-list");
     const deckPanel = document.querySelector("#deck-panel");
     const deckSections = document.querySelector("#deck-sections");
     const inspectPanel = document.querySelector("#inspect-panel");
@@ -121,6 +128,32 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 
       warningsPanel.append(warningsList);
       deckViewShell.insertBefore(warningsPanel, deckPanel);
+    }
+
+    function renderImportMetrics(metrics) {
+      if (!metrics) {
+        importMetricsPanel.hidden = true;
+        return;
+      }
+
+      importMetricsList.innerHTML = "";
+      [
+        ["Unique Cards", metrics.unique_card_names ?? 0],
+        ["Database Reads", metrics.database_reads ?? 0],
+        ["Cache Hits", metrics.cache_hits ?? 0],
+        ["Cache Misses", metrics.cache_misses ?? 0],
+        ["Scryfall Calls", metrics.scryfall_calls ?? 0],
+        ["Bulk Calls", metrics.scryfall_bulk_calls ?? 0],
+        ["Fuzzy Calls", metrics.scryfall_fuzzy_calls ?? 0],
+      ].forEach(([label, value]) => {
+        const dt = document.createElement("dt");
+        dt.textContent = label;
+        const dd = document.createElement("dd");
+        dd.textContent = String(value);
+        importMetricsList.append(dt, dd);
+      });
+
+      importMetricsPanel.hidden = false;
     }
 
     function renderManaCost(manaCost) {
@@ -300,6 +333,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 
         renderTitle(deck);
         renderWarnings(deck.warnings || []);
+        renderImportMetrics(deck.import_metrics);
         renderDeck(deck.cards || []);
       } catch (error) {
         deckTitle.textContent = "Deck Detail";

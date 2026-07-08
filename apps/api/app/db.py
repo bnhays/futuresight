@@ -7,3 +7,9 @@ client = AsyncIOMotorClient(settings.mongodb_url)
 
 def get_database() -> AsyncIOMotorDatabase:
     return client[settings.mongodb_db]
+
+
+async def ensure_indexes() -> None:
+    db = get_database()
+    await db.cards.create_index("name_key", unique=True)
+    await db.decks.create_index("updated_at")

@@ -2,6 +2,8 @@ from app.config import settings
 import httpx
 
 
+COLLECTION_CHUNK_SIZE = 75
+
 HEADERS = {
     "User-Agent": "FutureSight/0.1",
     "Accept": "application/json",
@@ -35,6 +37,39 @@ def normalize_card(raw: dict) -> dict[str, object] | None:
         "image_uri": get_image_uri(raw),
         "scryfall_uri": raw.get("scryfall_uri"),
     }
+
+
+def chunk_names(names: list[str]) -> list[list[str]]:
+    return [names[index : index + COLLECTION_CHUNK_SIZE] for index in range(0, len(names), COLLECTION_CHUNK_SIZE)]
+
+
+async def find_cards_by_names(names: list[str]) -> tuple[list[dict[str, object]], list[str], int]:
+    if not names:
+        return [], [], 0
+
+    found: list[dict[str, object]] = []
+    not_found: list[str] = []
+    scryfall_calls = 0
+
+    async with httpx.AsyncClient(timeout=15) as client:
+        for chunk in chunk_names(names):
+            response = await client.post(
+                f"{settings.scryfall_base_url}/cards/collection",
+                json={"identifiers": [{"name": name} for name in chunk]},
+                headers=HEADERS,
+            )
+            scryfall_calls += 1
+            response.raise_for_status()
+
+            data = response.json()
+            found.extend(card for card in (normalize_card(raw_card) for raw_card in data.get("data", [])) if card)
+            not_found.extend(
+                item.get("name")
+                for item in data.get("not_found", [])
+                if item.get("name")
+            )
+
+    return found, not_found, scryfall_calls
 
 
 async def find_card_by_name(name: str) -> dict[str, object] | None:
