@@ -9,7 +9,11 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         <h1 id="deck-title">Imported Deck</h1>
         <p id="import-meta">Loading imported deck...</p>
       </div>
-      <a class="button-link muted" href="/">Back</a>
+      <div class="deck-actions">
+        <a class="button-link muted" href="/">Back</a>
+        <button class="success-button" type="button">Edit</button>
+        <button class="danger-button" type="button">Delete</button>
+      </div>
     </div>
 
     <section id="deck-panel" class="deck-panel" hidden>

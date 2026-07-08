@@ -3,8 +3,102 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 ---
 
 <BaseLayout title="Decks | Future Sight">
-  <section>
-    <h1>Decks</h1>
-    <p>Deck list route placeholder.</p>
+  <section class="decks-shell">
+    <div class="import-header">
+      <h1>Decks</h1>
+    </div>
+
+    <div id="all-decks-list" class="recent-decks-list" aria-live="polite">
+      <p class="empty-state">Loading decks...</p>
+    </div>
   </section>
+
+  <script>
+    const API_URL = import.meta.env.PUBLIC_API_URL || "http://localhost:8000";
+    const allDecksList = document.querySelector("#all-decks-list");
+
+    function formatFormat(format) {
+      if (!format) return "";
+      return format.charAt(0).toUpperCase() + format.slice(1);
+    }
+
+    function formatUpdatedAt(updatedAt) {
+      if (!updatedAt) return "";
+      const date = new Date(updatedAt);
+      if (Number.isNaN(date.getTime())) return "";
+      return date.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+    }
+
+    function renderColorSquares(colors) {
+      const wrapper = document.createElement("span");
+      wrapper.className = "color-squares";
+
+      (colors || []).forEach((color) => {
+        const square = document.createElement("span");
+        square.className = `color-square color-${String(color).toLowerCase()}`;
+        wrapper.append(square);
+      });
+
+      return wrapper;
+    }
+
+    function renderDecks(decks) {
+      allDecksList.innerHTML = "";
+
+      if (!decks.length) {
+        const empty = document.createElement("p");
+        empty.className = "empty-state";
+        empty.textContent = "No saved decks yet.";
+        allDecksList.append(empty);
+        return;
+      }
+
+      decks.forEach((deck) => {
+        const link = document.createElement("a");
+        link.className = "recent-deck-link";
+        link.href = `/decks/view?id=${encodeURIComponent(deck.id)}`;
+
+        const header = document.createElement("span");
+        header.className = "recent-deck-header";
+
+        const name = document.createElement("span");
+        name.className = "recent-deck-name";
+        name.textContent = deck.name || "Untitled Deck";
+
+        const updatedAt = document.createElement("span");
+        updatedAt.className = "recent-deck-updated";
+        updatedAt.textContent = formatUpdatedAt(deck.updated_at);
+
+        const meta = document.createElement("span");
+        meta.className = "recent-deck-meta";
+        meta.append(
+          renderColorSquares(deck.color_identity || []),
+          document.createTextNode(formatFormat(deck.format || "unknown")),
+        );
+
+        header.append(name, updatedAt);
+        link.append(header, meta);
+        allDecksList.append(link);
+      });
+    }
+
+    async function loadDecks() {
+      try {
+        const response = await fetch(`${API_URL}/decks`);
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.detail || "Could not load decks.");
+        }
+        renderDecks(Array.isArray(data) ? data : []);
+      } catch {
+        allDecksList.innerHTML = "";
+        const error = document.createElement("p");
+        error.className = "empty-state";
+        error.textContent = "Decks are unavailable.";
+        allDecksList.append(error);
+      }
+    }
+
+    loadDecks();
+  </script>
 </BaseLayout>

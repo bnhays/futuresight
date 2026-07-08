@@ -39,11 +39,24 @@ def serialize_datetime(value: datetime | None) -> str | None:
     return value.isoformat()
 
 
-def serialize_deck_summary(deck: dict) -> DeckSummary:
+COLOR_ORDER = ["W", "U", "B", "R", "G", "C"]
+
+
+def get_deck_color_identity(cards: list[dict]) -> list[str]:
+    colors = {
+        color
+        for card in cards
+        for color in (card.get("card_data") or {}).get("color_identity", [])
+    }
+    return [color for color in COLOR_ORDER if color in colors]
+
+
+def serialize_deck_summary(deck: dict, color_identity: list[str] | None = None) -> DeckSummary:
     return DeckSummary(
         id=str(deck["_id"]),
         name=deck.get("name") or "Untitled Deck",
         format=deck.get("format") or "unknown",
+        color_identity=color_identity or [],
         active_version_id=str(deck["active_version_id"]) if deck.get("active_version_id") else None,
         updated_at=serialize_datetime(deck.get("updated_at")),
     )
@@ -235,10 +248,22 @@ async def import_deck(payload: DeckImportRequest) -> DeckImportResponse:
 
 @router.get("", response_model=list[DeckSummary])
 @router.get("/", response_model=list[DeckSummary], include_in_schema=False)
-async def list_decks(limit: int = Query(default=20, ge=1, le=100)) -> list[DeckSummary]:
+async def list_decks(limit: int | None = Query(default=None, ge=1, le=100)) -> list[DeckSummary]:
     db = get_database()
-    cursor = db.decks.find().sort("updated_at", -1).limit(limit)
-    return [serialize_deck_summary(deck) async for deck in cursor]
+    cursor = db.decks.find().sort("updated_at", -1)
+    if limit:
+        cursor = cursor.limit(limit)
+    summaries = []
+    async for deck in cursor:
+        version = None
+        if deck.get("active_version_id"):
+            version = await db.deck_versions.find_one({"_id": deck["active_version_id"]})
+
+        summaries.append(
+            serialize_deck_summary(deck, get_deck_color_identity(version.get("cards", []) if version else []))
+        )
+
+    return summaries
 
 
 @router.get("/{deck_id}", response_model=DeckDetail)
@@ -256,10 +281,11 @@ async def get_deck(deck_id: str) -> DeckDetail:
     if not version:
         raise HTTPException(status_code=404, detail="Deck version not found.")
 
-    summary = serialize_deck_summary(deck)
+    cards = version.get("cards", [])
+    summary = serialize_deck_summary(deck, get_deck_color_identity(cards))
     return DeckDetail(
         **summary.model_dump(),
-        cards=[ParsedDeckCard(**card) for card in version.get("cards", [])],
+        cards=[ParsedDeckCard(**card) for card in cards],
         warnings=version.get("warnings", []),
         import_metrics=DeckImportMetrics(**version.get("import_metrics", {})),
         raw_decklist=version.get("raw_decklist"),

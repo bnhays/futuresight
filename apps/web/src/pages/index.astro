@@ -50,6 +50,7 @@ Sideboard
       <aside class="recent-decks-panel" aria-labelledby="recent-decks-heading">
         <div class="panel-heading">
           <h2 id="recent-decks-heading">Recent Decks</h2>
+          <a class="button-link compact" href="/decks">See all</a>
         </div>
         <div id="recent-decks-list" class="recent-decks-list" aria-live="polite">
           <p class="empty-state">Loading decks...</p>
@@ -74,6 +75,26 @@ Sideboard
       return format.charAt(0).toUpperCase() + format.slice(1);
     }
 
+    function formatUpdatedAt(updatedAt) {
+      if (!updatedAt) return "";
+      const date = new Date(updatedAt);
+      if (Number.isNaN(date.getTime())) return "";
+      return date.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+    }
+
+    function renderColorSquares(colors) {
+      const wrapper = document.createElement("span");
+      wrapper.className = "color-squares";
+
+      (colors || []).forEach((color) => {
+        const square = document.createElement("span");
+        square.className = `color-square color-${String(color).toLowerCase()}`;
+        wrapper.append(square);
+      });
+
+      return wrapper;
+    }
+
     function renderRecentDecks(decks) {
       recentDecksList.innerHTML = "";
 
@@ -90,15 +111,26 @@ Sideboard
         link.className = "recent-deck-link";
         link.href = `/decks/view?id=${encodeURIComponent(deck.id)}`;
 
+        const header = document.createElement("span");
+        header.className = "recent-deck-header";
+
         const name = document.createElement("span");
         name.className = "recent-deck-name";
         name.textContent = deck.name || "Untitled Deck";
 
+        const updatedAt = document.createElement("span");
+        updatedAt.className = "recent-deck-updated";
+        updatedAt.textContent = formatUpdatedAt(deck.updated_at);
+
         const meta = document.createElement("span");
         meta.className = "recent-deck-meta";
-        meta.textContent = formatFormat(deck.format || "unknown");
+        meta.append(
+          renderColorSquares(deck.color_identity || []),
+          document.createTextNode(formatFormat(deck.format || "unknown")),
+        );
 
-        link.append(name, meta);
+        header.append(name, updatedAt);
+        link.append(header, meta);
         recentDecksList.append(link);
       });
     }
