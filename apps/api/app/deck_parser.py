@@ -78,9 +78,8 @@ def parse_decklist(raw_text: str) -> dict[str, list[Any]]:
         if lower in SECTION_HEADERS:
             continue
 
-        section_for_line = section
         if line.lower().startswith("sb:"):
-            section_for_line = "sideboard"
+            section = "sideboard"
             line = line[3:].strip()
 
         parsed_line = parse_card_line(line)
@@ -97,7 +96,7 @@ def parse_decklist(raw_text: str) -> dict[str, list[Any]]:
             {
                 "quantity": quantity,
                 "name": name,
-                "section": section_for_line,
+                "section": section,
             }
         )
 

@@ -8,48 +8,58 @@ import BaseLayout from "../layouts/BaseLayout.astro";
       <h1>Import Decklist</h1>
     </div>
 
-    <form id="import-form" class="import-form">
-      <div class="import-fields">
-        <label>
-          <span>Deck Name</span>
-          <input id="deck-name" name="name" type="text" autocomplete="off" placeholder="Izzet Phoenix" />
-        </label>
+    <div class="import-layout">
+      <form id="import-form" class="import-form">
+        <div class="import-fields">
+          <label>
+            <span>Deck Name</span>
+            <input id="deck-name" name="name" type="text" autocomplete="off" placeholder="Izzet Phoenix" />
+          </label>
 
-        <label>
-          <span>Format</span>
-          <select id="deck-format" name="format">
-            <option value="modern" selected>Modern</option>
-            <option value="standard">Standard</option>
-            <option value="pioneer">Pioneer</option>
-            <option value="legacy">Legacy</option>
-            <option value="vintage">Vintage</option>
-            <option value="pauper">Pauper</option>
-            <option value="commander">Commander</option>
-          </select>
-        </label>
-      </div>
+          <label>
+            <span>Format</span>
+            <select id="deck-format" name="format">
+              <option value="modern" selected>Modern</option>
+              <option value="standard">Standard</option>
+              <option value="pioneer">Pioneer</option>
+              <option value="legacy">Legacy</option>
+              <option value="vintage">Vintage</option>
+              <option value="pauper">Pauper</option>
+              <option value="commander">Commander</option>
+            </select>
+          </label>
+        </div>
 
-      <label for="decklist">Decklist</label>
-      <textarea
-        id="decklist"
-        name="decklist"
-        rows="16"
-        spellcheck="false"
-        placeholder={`4 Lightning Bolt
+        <label for="decklist">Decklist</label>
+        <textarea
+          id="decklist"
+          name="decklist"
+          rows="16"
+          spellcheck="false"
+          placeholder={`4 Lightning Bolt
 4x Counterspell
 Sideboard
 2 Negate`}
-      ></textarea>
-      <div class="form-actions">
-        <button id="import-button" type="submit">Import</button>
-        <span id="import-status" role="status" aria-live="polite"></span>
-      </div>
-    </form>
+        ></textarea>
+        <div class="form-actions">
+          <button id="import-button" type="submit">Import</button>
+          <span id="import-status" role="status" aria-live="polite"></span>
+        </div>
+      </form>
+
+      <aside class="recent-decks-panel" aria-labelledby="recent-decks-heading">
+        <div class="panel-heading">
+          <h2 id="recent-decks-heading">Recent Decks</h2>
+        </div>
+        <div id="recent-decks-list" class="recent-decks-list" aria-live="polite">
+          <p class="empty-state">Loading decks...</p>
+        </div>
+      </aside>
+    </div>
   </section>
 
   <script>
     const API_URL = import.meta.env.PUBLIC_API_URL || "http://localhost:8000";
-    const STORAGE_KEY = "future-sight:last-import";
 
     const form = document.querySelector("#import-form");
     const deckName = document.querySelector("#deck-name");
@@ -57,6 +67,58 @@ Sideboard
     const textarea = document.querySelector("#decklist");
     const button = document.querySelector("#import-button");
     const status = document.querySelector("#import-status");
+    const recentDecksList = document.querySelector("#recent-decks-list");
+
+    function formatFormat(format) {
+      if (!format) return "";
+      return format.charAt(0).toUpperCase() + format.slice(1);
+    }
+
+    function renderRecentDecks(decks) {
+      recentDecksList.innerHTML = "";
+
+      if (!decks.length) {
+        const empty = document.createElement("p");
+        empty.className = "empty-state";
+        empty.textContent = "No saved decks yet.";
+        recentDecksList.append(empty);
+        return;
+      }
+
+      decks.forEach((deck) => {
+        const link = document.createElement("a");
+        link.className = "recent-deck-link";
+        link.href = `/decks/view?id=${encodeURIComponent(deck.id)}`;
+
+        const name = document.createElement("span");
+        name.className = "recent-deck-name";
+        name.textContent = deck.name || "Untitled Deck";
+
+        const meta = document.createElement("span");
+        meta.className = "recent-deck-meta";
+        meta.textContent = formatFormat(deck.format || "unknown");
+
+        link.append(name, meta);
+        recentDecksList.append(link);
+      });
+    }
+
+    async function loadRecentDecks() {
+      try {
+        const response = await fetch(`${API_URL}/decks?limit=5`);
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.detail || "Could not load recent decks.");
+        }
+        renderRecentDecks(Array.isArray(data) ? data : []);
+      } catch {
+        recentDecksList.innerHTML = "";
+        const error = document.createElement("p");
+        error.className = "empty-state";
+        error.textContent = "Recent decks are unavailable.";
+        recentDecksList.append(error);
+      }
+    }
 
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
@@ -85,19 +147,9 @@ Sideboard
           throw new Error(data.detail || "Could not import decklist.");
         }
 
-        sessionStorage.setItem(
-          STORAGE_KEY,
-          JSON.stringify({
-            importedAt: new Date().toISOString(),
-            rawDecklist: decklist,
-            name: deckName.value.trim(),
-            format: deckFormat.value,
-            ...data,
-          }),
-        );
-        if (data.cards?.length) {
-          status.textContent = "Parsed. Opening deck view...";
-          window.location.href = "/decks/imported";
+        if (data.id && data.cards?.length) {
+          status.textContent = "Saved. Opening deck view...";
+          window.location.href = `/decks/view?id=${encodeURIComponent(data.id)}`;
         } else {
           status.textContent = "No cards found.";
         }
@@ -107,5 +159,7 @@ Sideboard
         button.disabled = false;
       }
     });
+
+    loadRecentDecks();
   </script>
 </BaseLayout>
