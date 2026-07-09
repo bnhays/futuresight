@@ -5,6 +5,7 @@ class DeckSummary(BaseModel):
     id: str
     name: str
     format: str
+    description: str | None = None
     color_identity: list[str] = Field(default_factory=list)
     active_version_id: str | None = None
     updated_at: str | None = None

@@ -4,8 +4,9 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 
 <BaseLayout title="Decks | Future Sight">
   <section class="decks-shell">
-    <div class="import-header">
+    <div class="page-heading">
       <h1>Decks</h1>
+      <a class="button-link action-button muted" href="/">Back</a>
     </div>
 
     <div id="all-decks-list" class="recent-decks-list" aria-live="polite">
@@ -54,20 +55,21 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       }
 
       decks.forEach((deck) => {
-        const link = document.createElement("a");
-        link.className = "recent-deck-link";
-        link.href = `/decks/view?id=${encodeURIComponent(deck.id)}`;
+        const item = document.createElement("article");
+        item.className = "recent-deck-link deck-list-item";
 
-        const header = document.createElement("span");
-        header.className = "recent-deck-header";
+        const link = document.createElement("a");
+        link.className = "deck-list-content deck-list-link";
+        link.href = `/decks/view?id=${encodeURIComponent(deck.id)}`;
 
         const name = document.createElement("span");
         name.className = "recent-deck-name";
         name.textContent = deck.name || "Untitled Deck";
 
         const updatedAt = document.createElement("span");
-        updatedAt.className = "recent-deck-updated";
-        updatedAt.textContent = formatUpdatedAt(deck.updated_at);
+        updatedAt.className = "deck-list-updated";
+        updatedAt.textContent = `Edited ${formatUpdatedAt(deck.updated_at)}`;
+        updatedAt.hidden = !deck.updated_at;
 
         const meta = document.createElement("span");
         meta.className = "recent-deck-meta";
@@ -76,10 +78,51 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
           document.createTextNode(formatFormat(deck.format || "unknown")),
         );
 
-        header.append(name, updatedAt);
-        link.append(header, meta);
-        allDecksList.append(link);
+        const description = document.createElement("span");
+        description.className = "recent-deck-description";
+        description.textContent = deck.description || "";
+        description.hidden = !deck.description;
+
+        link.append(name, updatedAt, description, meta);
+
+        const deleteButton = document.createElement("button");
+        deleteButton.className = "action-button danger-button hollow-button deck-list-delete";
+        deleteButton.type = "button";
+        deleteButton.textContent = "Delete";
+        deleteButton.addEventListener("click", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          deleteDeck(deck, item, deleteButton);
+        });
+
+        item.append(link, deleteButton);
+        allDecksList.append(item);
       });
+    }
+
+    async function deleteDeck(deck, item, deleteButton) {
+      const confirmed = window.confirm(`Delete ${deck.name || "this deck"}?`);
+      if (!confirmed) return;
+
+      deleteButton.disabled = true;
+
+      try {
+        const response = await fetch(`${API_URL}/decks/${deck.id}`, { method: "DELETE" });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.detail || "Could not delete deck.");
+        }
+
+        item.remove();
+        if (!allDecksList.children.length) {
+          const empty = document.createElement("p");
+          empty.className = "empty-state";
+          empty.textContent = "No saved decks yet.";
+          allDecksList.append(empty);
+        }
+      } catch {
+        deleteButton.disabled = false;
+      }
     }
 
     async function loadDecks() {

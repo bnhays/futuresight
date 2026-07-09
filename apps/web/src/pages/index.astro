@@ -4,10 +4,6 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 
 <BaseLayout title="Future Sight">
   <section class="import-shell">
-    <div class="import-header">
-      <h1>Import Decklist</h1>
-    </div>
-
     <div class="import-layout">
       <form id="import-form" class="import-form">
         <div class="import-fields">
@@ -30,6 +26,18 @@ import BaseLayout from "../layouts/BaseLayout.astro";
           </label>
         </div>
 
+        <label>
+          <span>Description</span>
+          <input
+            id="deck-description"
+            name="description"
+            type="text"
+            maxlength="150"
+            autocomplete="off"
+            placeholder="Tempo deck with phoenix recursion"
+          />
+        </label>
+
         <label for="decklist">Decklist</label>
         <textarea
           id="decklist"
@@ -47,15 +55,27 @@ Sideboard
         </div>
       </form>
 
-      <aside class="recent-decks-panel" aria-labelledby="recent-decks-heading">
-        <div class="panel-heading">
-          <h2 id="recent-decks-heading">Recent Decks</h2>
-          <a class="button-link compact" href="/decks">See all</a>
-        </div>
-        <div id="recent-decks-list" class="recent-decks-list" aria-live="polite">
-          <p class="empty-state">Loading decks...</p>
-        </div>
-      </aside>
+      <div class="import-side-panels">
+        <aside class="recent-decks-panel" aria-labelledby="recent-decks-heading">
+          <div class="panel-heading">
+            <h2 id="recent-decks-heading">Recent Decks</h2>
+            <a class="button-link compact" href="/decks">See all</a>
+          </div>
+          <div id="recent-decks-list" class="recent-decks-list" aria-live="polite">
+            <p class="empty-state">Loading decks...</p>
+          </div>
+        </aside>
+
+        <aside class="random-card-panel" aria-labelledby="random-card-heading">
+          <div class="panel-heading">
+            <h2 id="random-card-heading">Random Card Art</h2>
+            <button id="refresh-card-art" class="action-button muted hollow-button compact-action" type="button">Refresh</button>
+          </div>
+          <div id="random-card-art" class="random-card-art" aria-live="polite">
+            <p class="empty-state">Loading card art...</p>
+          </div>
+        </aside>
+      </div>
     </div>
   </section>
 
@@ -65,10 +85,13 @@ Sideboard
     const form = document.querySelector("#import-form");
     const deckName = document.querySelector("#deck-name");
     const deckFormat = document.querySelector("#deck-format");
+    const deckDescription = document.querySelector("#deck-description");
     const textarea = document.querySelector("#decklist");
     const button = document.querySelector("#import-button");
     const status = document.querySelector("#import-status");
     const recentDecksList = document.querySelector("#recent-decks-list");
+    const randomCardArt = document.querySelector("#random-card-art");
+    const refreshCardArtButton = document.querySelector("#refresh-card-art");
 
     function formatFormat(format) {
       if (!format) return "";
@@ -129,8 +152,13 @@ Sideboard
           document.createTextNode(formatFormat(deck.format || "unknown")),
         );
 
+        const description = document.createElement("span");
+        description.className = "recent-deck-description";
+        description.textContent = deck.description || "";
+        description.hidden = !deck.description;
+
         header.append(name, updatedAt);
-        link.append(header, meta);
+        link.append(header, description, meta);
         recentDecksList.append(link);
       });
     }
@@ -152,6 +180,77 @@ Sideboard
       }
     }
 
+    function shuffle(items) {
+      return items
+        .map((item) => ({ item, sort: Math.random() }))
+        .sort((a, b) => a.sort - b.sort)
+        .map(({ item }) => item);
+    }
+
+    function getCardsWithArt(deck) {
+      return (deck.cards || []).filter((card) => card.card_data?.image_uri);
+    }
+
+    function renderRandomCardArt(deck, card) {
+      randomCardArt.innerHTML = "";
+
+      const image = document.createElement("img");
+      image.src = card.card_data.image_uri;
+      image.alt = card.card_data.name || card.name || "Random card art";
+
+      const source = document.createElement("p");
+      source.className = "random-card-source";
+      source.textContent = `From ${deck.name || "Untitled Deck"}`;
+
+      randomCardArt.append(image, source);
+    }
+
+    function renderRandomCardMessage(message) {
+      randomCardArt.innerHTML = "";
+      const empty = document.createElement("p");
+      empty.className = "empty-state";
+      empty.textContent = message;
+      randomCardArt.append(empty);
+    }
+
+    async function loadRandomCardArt() {
+      refreshCardArtButton.disabled = true;
+      renderRandomCardMessage("Loading card art...");
+
+      try {
+        const response = await fetch(`${API_URL}/decks`);
+        const decks = await response.json();
+        if (!response.ok) {
+          throw new Error(decks.detail || "Could not load decks.");
+        }
+
+        const shuffledDecks = shuffle(Array.isArray(decks) ? decks : []);
+        if (!shuffledDecks.length) {
+          renderRandomCardMessage("No saved decks yet.");
+          return;
+        }
+
+        for (const deckSummary of shuffledDecks) {
+          const detailResponse = await fetch(`${API_URL}/decks/${deckSummary.id}`);
+          const deck = await detailResponse.json();
+          if (!detailResponse.ok) continue;
+
+          const cardsWithArt = getCardsWithArt(deck);
+          if (!cardsWithArt.length) continue;
+
+          const card = cardsWithArt[Math.floor(Math.random() * cardsWithArt.length)];
+          renderRandomCardArt(deck, card);
+          return;
+        }
+
+        renderRandomCardMessage("Saved decks do not have card art yet.");
+      } catch {
+        renderRandomCardMessage("Card art is unavailable.");
+      } finally {
+        refreshCardArtButton.disabled = false;
+      }
+    }
+
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       const decklist = textarea.value.trim();
@@ -170,6 +269,7 @@ Sideboard
           body: JSON.stringify({
             name: deckName.value.trim(),
             format: deckFormat.value,
+            description: deckDescription.value.trim(),
             decklist,
           }),
         });
@@ -192,6 +292,9 @@ Sideboard
       }
     });
 
+    refreshCardArtButton.addEventListener("click", loadRandomCardArt);
+
     loadRecentDecks();
+    loadRandomCardArt();
   </script>
 </BaseLayout>

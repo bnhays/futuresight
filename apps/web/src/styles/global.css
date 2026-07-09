@@ -19,27 +19,52 @@ body {
 
 .site-header {
   display: flex;
+  align-items: center;
   gap: 1rem;
   justify-content: space-between;
-  padding: 1rem;
-  border-bottom: 1px solid #d9dee3;
-  background: #ffffff;
+  padding: 0.75rem 1rem;
+  border-bottom: 1px solid #cbdff2;
+  background: #edf6ff;
 }
 
 .brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
   font-weight: 700;
   color: #111827;
   text-decoration: none;
 }
 
-nav {
+.brand-logo {
+  width: 2.75rem;
+  height: 2.75rem;
+  border: 2px solid #c0c0c0;
+  border-radius: 10px;
+  object-fit: cover;
+}
+
+.site-nav {
   display: flex;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 1rem;
 }
 
-nav a {
-  color: #374151;
-  text-decoration: none;
+.site-nav a {
+  color: #8b949e;
+  font-weight: 400;
+  text-decoration: underline;
+  text-underline-offset: 0.22rem;
+}
+
+.site-nav a:hover,
+.site-nav a:focus {
+  color: #68717d;
+}
+
+.site-nav a[aria-disabled="true"] {
+  cursor: default;
 }
 
 main {
@@ -55,20 +80,25 @@ main {
   margin: 0 auto;
 }
 
+.deck-view-shell {
+  max-width: 1440px;
+}
+
 .import-header,
+.page-heading,
 .deck-view-header {
   display: grid;
   gap: 0.35rem;
 }
 
 .import-header h1,
+.page-heading h1,
 .deck-view-header h1,
 .deck-view-header p,
 .deck-panel h2,
 .inspect-panel h2,
 .deck-section h3,
-.message-panel h2,
-.import-metrics-panel h2 {
+.message-panel h2 {
   margin: 0;
 }
 
@@ -82,7 +112,7 @@ main {
 .inspect-panel,
 .message-panel,
 .recent-decks-panel,
-.import-metrics-panel {
+.random-card-panel {
   display: grid;
   gap: 0.85rem;
   padding: 1rem;
@@ -95,6 +125,11 @@ main {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(16rem, 20rem);
   align-items: start;
+  gap: 1rem;
+}
+
+.import-side-panels {
+  display: grid;
   gap: 1rem;
 }
 
@@ -145,13 +180,23 @@ main {
 
 button {
   min-height: 2.5rem;
-  border: 0;
+  border: 1px solid #2563eb;
   border-radius: 6px;
   padding: 0 1rem;
   font-weight: 700;
+  color: #2563eb;
+  background: transparent;
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease;
+}
+
+button:hover,
+button:focus {
   color: #ffffff;
   background: #2563eb;
-  cursor: pointer;
 }
 
 .button-link {
@@ -160,15 +205,62 @@ button {
   justify-content: center;
   min-height: 2.5rem;
   width: fit-content;
+  border: 1px solid #2563eb;
   border-radius: 6px;
   padding: 0 1rem;
   font-weight: 700;
-  color: #ffffff;
-  background: #2563eb;
+  color: #2563eb;
+  background: transparent;
   text-decoration: none;
+  transition:
+    color 0.15s ease,
+    background-color 0.15s ease,
+    border-color 0.15s ease;
 }
 
-.button-link.muted {
+.button-link:hover,
+.button-link:focus {
+  color: #ffffff;
+  background: #2563eb;
+}
+
+.action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 2.5rem;
+  border: 1px solid currentColor;
+  border-radius: 6px;
+  padding: 0 1rem;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.primary-button {
+  border-color: #2563eb;
+  color: #2563eb;
+}
+
+.primary-button:hover,
+.primary-button:focus {
+  color: #ffffff;
+  background: #2563eb;
+}
+
+.button-link.muted,
+.muted {
+  border-color: #6b7280;
+  color: #6b7280;
+  background: transparent;
+}
+
+.button-link.muted:hover,
+.button-link.muted:focus,
+.muted:hover,
+.muted:focus {
+  color: #ffffff;
   background: #6b7280;
 }
 
@@ -178,12 +270,48 @@ button {
   font-size: 0.9rem;
 }
 
+.compact-action {
+  min-height: 2rem;
+  padding: 0 0.75rem;
+  font-size: 0.9rem;
+}
+
 .success-button {
+  border-color: #16a34a;
+  color: #15803d;
+  background: transparent;
+}
+
+.success-button:hover,
+.success-button:focus {
+  color: #ffffff;
   background: #16a34a;
 }
 
 .danger-button {
+  border-color: #dc2626;
+  color: #b91c1c;
+  background: transparent;
+}
+
+.danger-button:hover,
+.danger-button:focus {
+  color: #ffffff;
   background: #dc2626;
+}
+
+.hollow-button {
+  background: transparent;
+}
+
+.success-button.hollow-button {
+  border-color: #16a34a;
+  color: #15803d;
+}
+
+.danger-button.hollow-button {
+  border-color: #dc2626;
+  color: #b91c1c;
 }
 
 button:disabled {
@@ -191,14 +319,40 @@ button:disabled {
   opacity: 0.65;
 }
 
+button:disabled:hover,
+button:disabled:focus {
+  background: transparent;
+}
+
 #import-status,
-#card-count {
+#card-count,
+#edit-status {
   color: #52606d;
 }
 
-.recent-decks-panel h2 {
+.recent-decks-panel h2,
+.random-card-panel h2 {
   margin: 0;
   font-size: 1.1rem;
+}
+
+.random-card-art {
+  display: grid;
+  gap: 0.65rem;
+}
+
+.random-card-art img {
+  width: 100%;
+  border: 1px solid #d9dee3;
+  border-radius: 8px;
+  background: #fbfcfd;
+}
+
+.random-card-source {
+  margin: 0;
+  color: #52606d;
+  font-size: 0.88rem;
+  line-height: 1.35;
 }
 
 .recent-decks-list {
@@ -224,6 +378,30 @@ button:disabled {
   outline: none;
 }
 
+.deck-list-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.deck-list-content {
+  display: grid;
+  min-width: 0;
+  gap: 0.25rem;
+}
+
+.deck-list-link {
+  min-width: 0;
+  color: inherit;
+  text-decoration: none;
+}
+
+.deck-list-delete {
+  position: relative;
+  z-index: 1;
+}
+
 .recent-deck-header,
 .recent-deck-meta {
   display: flex;
@@ -239,8 +417,21 @@ button:disabled {
   font-weight: 700;
 }
 
+.recent-deck-description,
+.deck-detail-description {
+  color: #6b7280;
+  font-size: 0.88rem;
+  font-weight: 300;
+  line-height: 1.35;
+}
+
 .recent-deck-updated {
   flex: 0 0 auto;
+  color: #52606d;
+  font-size: 0.82rem;
+}
+
+.deck-list-updated {
   color: #52606d;
   font-size: 0.82rem;
 }
@@ -252,29 +443,15 @@ button:disabled {
   font-size: 0.92rem;
 }
 
-.import-metrics-panel dl {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(7rem, 1fr));
-  gap: 0.75rem;
-  margin: 0;
-}
-
-.import-metrics-panel dt {
-  color: #52606d;
-  font-size: 0.82rem;
-  font-weight: 700;
-}
-
-.import-metrics-panel dd {
-  margin: 0.2rem 0 0;
-  color: #111827;
-  font-size: 1.2rem;
-  font-weight: 800;
-}
-
 .message-panel {
   border-color: #f2c94c;
   background: #fff9db;
+}
+
+.deck-panel {
+  padding: 0;
+  border: 0;
+  background: transparent;
 }
 
 .message-panel ul,
@@ -288,12 +465,20 @@ button:disabled {
 
 .deck-sections {
   display: grid;
-  gap: 2rem;
+  gap: 1.25rem;
+  grid-template-columns: minmax(0, 1.65fr) minmax(28rem, 1fr);
+  align-items: start;
 }
 
 .deck-section {
   display: grid;
   gap: 0.75rem;
+  min-width: 0;
+  overflow-x: auto;
+  padding: 1rem;
+  border: 1px solid #d9dee3;
+  border-radius: 8px;
+  background: #ffffff;
 }
 
 .card-qty {
@@ -304,6 +489,11 @@ button:disabled {
 .deck-view-header {
   grid-template-columns: 1fr auto;
   align-items: start;
+}
+
+.page-heading {
+  grid-template-columns: 1fr auto;
+  align-items: center;
 }
 
 .deck-actions {
@@ -363,6 +553,7 @@ button:disabled {
   width: 100%;
   border-collapse: collapse;
   border: 0;
+  table-layout: fixed;
   background: #ffffff;
 }
 
@@ -384,7 +575,21 @@ button:disabled {
 .deck-table td:nth-child(1),
 .deck-table th:nth-child(5),
 .deck-table td:nth-child(5) {
-  width: 4rem;
+  width: 3.5rem;
+}
+
+.deck-table th:nth-child(3),
+.deck-table td:nth-child(3) {
+  width: 6.5rem;
+}
+
+.deck-table th:nth-child(4),
+.deck-table td:nth-child(4) {
+  width: 26%;
+}
+
+.deck-table td {
+  overflow-wrap: anywhere;
 }
 
 .card-name {
@@ -513,22 +718,35 @@ button:disabled {
   background: #f3f4f6;
 }
 
+.icon-button:hover,
+.icon-button:focus {
+  color: #111827;
+  background: #e5e7eb;
+}
+
 .deck-table tr:last-child td {
   border-bottom: 0;
 }
 
 @media (max-width: 640px) {
+  .site-header {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
   main {
     padding: 1rem;
   }
 
   .form-actions,
   .panel-heading,
+  .page-heading,
   .deck-view-header {
     align-items: flex-start;
     flex-direction: column;
   }
 
+  .page-heading,
   .deck-view-header {
     display: flex;
   }
@@ -544,6 +762,11 @@ button:disabled {
   .deck-table {
     display: block;
     overflow-x: auto;
+  }
+
+  .deck-sections,
+  .deck-list-item {
+    grid-template-columns: 1fr;
   }
 
   .inspect-panel {

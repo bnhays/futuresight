@@ -17,6 +17,7 @@ class DeckImportRequest(BaseModel):
     decklist: str = Field(min_length=1)
     name: str | None = None
     format: str = "modern"
+    description: str | None = None
 
 
 class DeckImportResponse(BaseModel):
@@ -24,9 +25,14 @@ class DeckImportResponse(BaseModel):
     active_version_id: str
     name: str | None = None
     format: str
+    description: str | None = None
     cards: list[ParsedDeckCard]
     warnings: list[str] = Field(default_factory=list)
     import_metrics: DeckImportMetrics
+
+
+class DeckUpdateResponse(DeckImportResponse):
+    pass
 
 
 def utc_now() -> datetime:
@@ -56,10 +62,16 @@ def serialize_deck_summary(deck: dict, color_identity: list[str] | None = None) 
         id=str(deck["_id"]),
         name=deck.get("name") or "Untitled Deck",
         format=deck.get("format") or "unknown",
+        description=deck.get("description"),
         color_identity=color_identity or [],
         active_version_id=str(deck["active_version_id"]) if deck.get("active_version_id") else None,
         updated_at=serialize_datetime(deck.get("updated_at")),
     )
+
+
+def normalize_description(value: str | None) -> str | None:
+    description = (value or "").strip()
+    return description[:150] or None
 
 
 def parse_object_id(value: str) -> ObjectId:
@@ -190,29 +202,37 @@ async def resolve_card_data(db, names: list[str], warnings: list[str]) -> tuple[
     return lookup_results, metrics
 
 
-@router.post("/import", response_model=DeckImportResponse)
-async def import_deck(payload: DeckImportRequest) -> DeckImportResponse:
-    parsed = parse_decklist(payload.decklist)
+async def parse_and_resolve_decklist(db, decklist: str) -> tuple[list[ParsedDeckCard], list[str], DeckImportMetrics]:
+    parsed = parse_decklist(decklist)
     cards = [ParsedDeckCard(**card) for card in parsed["cards"]]
     warnings = list(parsed["warnings"])
     if not cards:
         raise HTTPException(status_code=400, detail="No cards found in decklist.")
 
-    db = get_database()
     unique_names = list(dict.fromkeys(card.name for card in cards))
     lookup_results, import_metrics = await resolve_card_data(db, unique_names, warnings)
 
     for card in cards:
         card.card_data = lookup_results.get(card.name)
 
+    return cards, warnings, import_metrics
+
+
+@router.post("/import", response_model=DeckImportResponse)
+async def import_deck(payload: DeckImportRequest) -> DeckImportResponse:
+    db = get_database()
+    cards, warnings, import_metrics = await parse_and_resolve_decklist(db, payload.decklist)
+
     now = utc_now()
     deck_name = (payload.name or "").strip() or "Untitled Deck"
     deck_format = payload.format.strip().lower() or "modern"
+    deck_description = normalize_description(payload.description)
 
     deck_result = await db.decks.insert_one(
         {
             "name": deck_name,
             "format": deck_format,
+            "description": deck_description,
             "active_version_id": None,
             "created_at": now,
             "updated_at": now,
@@ -223,6 +243,7 @@ async def import_deck(payload: DeckImportRequest) -> DeckImportResponse:
             "deck_id": deck_result.inserted_id,
             "name": deck_name,
             "format": deck_format,
+            "description": deck_description,
             "cards": [card.model_dump() for card in cards],
             "warnings": warnings,
             "import_metrics": import_metrics.model_dump(),
@@ -240,6 +261,7 @@ async def import_deck(payload: DeckImportRequest) -> DeckImportResponse:
         active_version_id=str(version_result.inserted_id),
         name=deck_name,
         format=deck_format,
+        description=deck_description,
         cards=cards,
         warnings=warnings,
         import_metrics=import_metrics,
@@ -291,3 +313,70 @@ async def get_deck(deck_id: str) -> DeckDetail:
         raw_decklist=version.get("raw_decklist"),
         created_at=serialize_datetime(deck.get("created_at")),
     )
+
+
+@router.put("/{deck_id}", response_model=DeckUpdateResponse)
+async def update_deck(deck_id: str, payload: DeckImportRequest) -> DeckUpdateResponse:
+    db = get_database()
+    deck_object_id = parse_object_id(deck_id)
+    deck = await db.decks.find_one({"_id": deck_object_id})
+    if not deck:
+        raise HTTPException(status_code=404, detail="Deck not found.")
+
+    cards, warnings, import_metrics = await parse_and_resolve_decklist(db, payload.decklist)
+    now = utc_now()
+    deck_name = (payload.name or "").strip() or "Untitled Deck"
+    deck_format = payload.format.strip().lower() or "modern"
+    deck_description = normalize_description(payload.description)
+
+    version_document = {
+        "deck_id": deck_object_id,
+        "name": deck_name,
+        "format": deck_format,
+        "description": deck_description,
+        "cards": [card.model_dump() for card in cards],
+        "warnings": warnings,
+        "import_metrics": import_metrics.model_dump(),
+        "raw_decklist": payload.decklist,
+        "created_at": now,
+    }
+
+    await db.deck_versions.delete_many({"deck_id": deck_object_id})
+    version_insert = await db.deck_versions.insert_one(version_document)
+    active_version_id = version_insert.inserted_id
+
+    await db.decks.update_one(
+        {"_id": deck_object_id},
+        {
+            "$set": {
+                "name": deck_name,
+                "format": deck_format,
+                "description": deck_description,
+                "active_version_id": active_version_id,
+                "updated_at": now,
+            }
+        },
+    )
+
+    return DeckUpdateResponse(
+        id=str(deck_object_id),
+        active_version_id=str(active_version_id),
+        name=deck_name,
+        format=deck_format,
+        description=deck_description,
+        cards=cards,
+        warnings=warnings,
+        import_metrics=import_metrics,
+    )
+
+
+@router.delete("/{deck_id}")
+async def delete_deck(deck_id: str) -> dict[str, str]:
+    db = get_database()
+    deck_object_id = parse_object_id(deck_id)
+    result = await db.decks.delete_one({"_id": deck_object_id})
+    if result.deleted_count == 0:
+        raise HTTPException(status_code=404, detail="Deck not found.")
+
+    await db.deck_versions.delete_many({"deck_id": deck_object_id})
+    return {"status": "deleted"}

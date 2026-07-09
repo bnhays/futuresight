@@ -7,18 +7,54 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     <div class="deck-view-header">
       <div>
         <h1 id="deck-title">Deck Detail</h1>
+        <p id="deck-description" class="deck-detail-description" hidden></p>
         <p id="deck-meta">Loading deck...</p>
       </div>
       <div class="deck-actions">
-        <a class="button-link muted" href="/">Back</a>
-        <button class="success-button" type="button">Edit</button>
-        <button class="danger-button" type="button">Delete</button>
+        <a class="button-link action-button muted" href="/">Back</a>
+        <button id="edit-deck" class="action-button success-button hollow-button" type="button">Edit</button>
+        <button id="delete-deck" class="action-button danger-button hollow-button" type="button">Delete</button>
       </div>
     </div>
 
-    <section id="import-metrics-panel" class="import-metrics-panel" hidden>
-      <h2>Import Stats</h2>
-      <dl id="import-metrics-list"></dl>
+    <section id="deck-edit-panel" class="deck-edit-panel" hidden>
+      <form id="deck-edit-form" class="import-form deck-edit-form">
+        <div class="import-fields">
+          <label>
+            <span>Deck Name</span>
+            <input id="edit-deck-name" name="name" type="text" autocomplete="off" />
+          </label>
+
+          <label>
+            <span>Format</span>
+            <select id="edit-deck-format" name="format">
+              <option value="modern">Modern</option>
+              <option value="standard">Standard</option>
+              <option value="pioneer">Pioneer</option>
+              <option value="legacy">Legacy</option>
+              <option value="vintage">Vintage</option>
+              <option value="pauper">Pauper</option>
+              <option value="commander">Commander</option>
+            </select>
+          </label>
+        </div>
+
+        <label>
+          <span>Description</span>
+          <input id="edit-deck-description" name="description" type="text" maxlength="150" autocomplete="off" />
+        </label>
+
+        <label for="edit-decklist">Decklist</label>
+        <textarea id="edit-decklist" name="decklist" rows="18" spellcheck="false"></textarea>
+
+        <div class="form-actions">
+          <div class="deck-actions">
+            <button id="save-deck" class="action-button primary-button hollow-button" type="submit">Save</button>
+            <button id="cancel-edit" class="action-button muted hollow-button" type="button">Back</button>
+          </div>
+          <span id="edit-status" role="status" aria-live="polite"></span>
+        </div>
+      </form>
     </section>
 
     <section id="deck-panel" class="deck-panel" hidden>
@@ -46,14 +82,26 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     const deckViewShell = document.querySelector(".deck-view-shell");
     const deckId = new URLSearchParams(window.location.search).get("id");
     const deckTitle = document.querySelector("#deck-title");
+    const deckDescription = document.querySelector("#deck-description");
     const deckMeta = document.querySelector("#deck-meta");
-    const importMetricsPanel = document.querySelector("#import-metrics-panel");
-    const importMetricsList = document.querySelector("#import-metrics-list");
     const deckPanel = document.querySelector("#deck-panel");
     const deckSections = document.querySelector("#deck-sections");
     const inspectPanel = document.querySelector("#inspect-panel");
     const inspectContent = document.querySelector("#inspect-content");
     const closeInspect = document.querySelector("#close-inspect");
+    const editDeckButton = document.querySelector("#edit-deck");
+    const deleteDeckButton = document.querySelector("#delete-deck");
+    const deckEditPanel = document.querySelector("#deck-edit-panel");
+    const deckEditForm = document.querySelector("#deck-edit-form");
+    const editDeckName = document.querySelector("#edit-deck-name");
+    const editDeckFormat = document.querySelector("#edit-deck-format");
+    const editDeckDescription = document.querySelector("#edit-deck-description");
+    const editDecklist = document.querySelector("#edit-decklist");
+    const saveDeckButton = document.querySelector("#save-deck");
+    const cancelEditButton = document.querySelector("#cancel-edit");
+    const editStatus = document.querySelector("#edit-status");
+    let currentDeck = null;
+    let inspectedCardKey = null;
 
     function groupBySection(cards) {
       return cards.reduce((groups, card) => {
@@ -107,7 +155,54 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         deckTitle.append(colors);
       }
       deckTitle.append(titleText);
+      deckDescription.textContent = deck.description || "";
+      deckDescription.hidden = !deck.description;
       deckMeta.textContent = `Format: ${formatFormat(deck.format || "modern")}`;
+    }
+
+    function deckToText(cards) {
+      const groups = groupBySection(cards || []);
+      const lines = [];
+
+      (groups.mainboard || []).forEach((card) => {
+        lines.push(`${card.quantity} ${card.name}`);
+      });
+
+      if ((groups.sideboard || []).length) {
+        if (lines.length) lines.push("");
+        lines.push("Sideboard");
+        groups.sideboard.forEach((card) => {
+          lines.push(`${card.quantity} ${card.name}`);
+        });
+      }
+
+      return lines.join("\n");
+    }
+
+    function openEditPanel() {
+      if (!currentDeck) return;
+      editDeckName.value = currentDeck.name || "";
+      editDeckFormat.value = currentDeck.format || "modern";
+      editDeckDescription.value = currentDeck.description || "";
+      editDecklist.value = currentDeck.raw_decklist || deckToText(currentDeck.cards || []);
+      editStatus.textContent = "";
+      deckEditPanel.hidden = false;
+      closeInspectPanel();
+      editDeckName.focus();
+    }
+
+    function closeEditPanel() {
+      deckEditPanel.hidden = true;
+      editStatus.textContent = "";
+      deckEditForm.reset();
+    }
+
+    function toggleEditPanel() {
+      if (deckEditPanel.hidden) {
+        openEditPanel();
+      } else {
+        closeEditPanel();
+      }
     }
 
     function renderWarnings(warnings) {
@@ -132,32 +227,6 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 
       warningsPanel.append(warningsList);
       deckViewShell.insertBefore(warningsPanel, deckPanel);
-    }
-
-    function renderImportMetrics(metrics) {
-      if (!metrics) {
-        importMetricsPanel.hidden = true;
-        return;
-      }
-
-      importMetricsList.innerHTML = "";
-      [
-        ["Unique Cards", metrics.unique_card_names ?? 0],
-        ["Database Reads", metrics.database_reads ?? 0],
-        ["Cache Hits", metrics.cache_hits ?? 0],
-        ["Cache Misses", metrics.cache_misses ?? 0],
-        ["Scryfall Calls", metrics.scryfall_calls ?? 0],
-        ["Bulk Calls", metrics.scryfall_bulk_calls ?? 0],
-        ["Fuzzy Calls", metrics.scryfall_fuzzy_calls ?? 0],
-      ].forEach(([label, value]) => {
-        const dt = document.createElement("dt");
-        dt.textContent = label;
-        const dd = document.createElement("dd");
-        dd.textContent = String(value);
-        importMetricsList.append(dt, dd);
-      });
-
-      importMetricsPanel.hidden = false;
     }
 
     function renderManaCost(manaCost) {
@@ -193,7 +262,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         if (!cardsInSection.length) return;
 
         const sectionEl = document.createElement("section");
-        sectionEl.className = "deck-section";
+        sectionEl.className = `deck-section deck-section-${section}`;
 
         const heading = document.createElement("h2");
         heading.textContent = sectionLabel(section);
@@ -210,18 +279,19 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         cardsInSection.forEach((card) => {
           const data = card.card_data || {};
           const row = document.createElement("tr");
+          const cardKey = `${section}:${card.name}:${card.quantity}:${data.name || ""}`;
           row.className = "card-row";
           row.tabIndex = 0;
           row.setAttribute("role", "button");
           row.setAttribute("aria-label", `Inspect ${data.name || card.name}`);
           row.addEventListener("click", (event) => {
             event.stopPropagation();
-            showInspect(card);
+            toggleInspect(card, cardKey);
           });
           row.addEventListener("keydown", (event) => {
             if (event.key === "Enter" || event.key === " ") {
               event.preventDefault();
-              showInspect(card);
+              toggleInspect(card, cardKey);
             }
           });
 
@@ -253,6 +323,21 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         sectionEl.append(table);
         deckSections.append(sectionEl);
       });
+    }
+
+    function closeInspectPanel() {
+      inspectPanel.hidden = true;
+      inspectedCardKey = null;
+    }
+
+    function toggleInspect(card, cardKey) {
+      if (!inspectPanel.hidden && inspectedCardKey === cardKey) {
+        closeInspectPanel();
+        return;
+      }
+
+      inspectedCardKey = cardKey;
+      showInspect(card);
     }
 
     function showInspect(card) {
@@ -335,9 +420,9 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
           throw new Error(deck.detail || "Could not load deck.");
         }
 
+        currentDeck = deck;
         renderTitle(deck);
         renderWarnings(deck.warnings || []);
-        renderImportMetrics(deck.import_metrics);
         renderDeck(deck.cards || []);
       } catch (error) {
         deckTitle.textContent = "Deck Detail";
@@ -346,9 +431,67 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       }
     }
 
+    async function saveDeck(event) {
+      event.preventDefault();
+
+      const decklist = editDecklist.value.trim();
+      if (!decklist) {
+        editStatus.textContent = "Paste a decklist first.";
+        return;
+      }
+
+      saveDeckButton.disabled = true;
+      editStatus.textContent = "Saving...";
+
+      try {
+        const response = await fetch(`${API_URL}/decks/${deckId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: editDeckName.value.trim(),
+            format: editDeckFormat.value,
+            description: editDeckDescription.value.trim(),
+            decklist,
+          }),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.detail || "Could not save deck.");
+        }
+
+        editStatus.textContent = "Saved. Reloading...";
+        window.location.reload();
+      } catch (error) {
+        editStatus.textContent = error instanceof Error ? error.message : "Could not save deck.";
+        saveDeckButton.disabled = false;
+      }
+    }
+
+    async function deleteDeck() {
+      if (!deckId) return;
+      const confirmed = window.confirm("Delete this deck?");
+      if (!confirmed) return;
+
+      deleteDeckButton.disabled = true;
+
+      try {
+        const response = await fetch(`${API_URL}/decks/${deckId}`, { method: "DELETE" });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.detail || "Could not delete deck.");
+        }
+
+        window.location.href = "/decks";
+      } catch (error) {
+        deckMeta.textContent = error instanceof Error ? error.message : "Could not delete deck.";
+        deleteDeckButton.disabled = false;
+      }
+    }
+
     closeInspect.addEventListener("click", (event) => {
       event.stopPropagation();
-      inspectPanel.hidden = true;
+      closeInspectPanel();
     });
 
     inspectPanel.addEventListener("click", (event) => {
@@ -357,9 +500,14 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 
     document.addEventListener("click", () => {
       if (!inspectPanel.hidden) {
-        inspectPanel.hidden = true;
+        closeInspectPanel();
       }
     });
+
+    editDeckButton.addEventListener("click", toggleEditPanel);
+    deckEditForm.addEventListener("submit", saveDeck);
+    cancelEditButton.addEventListener("click", closeEditPanel);
+    deleteDeckButton.addEventListener("click", deleteDeck);
 
     loadDeck();
   </script>
