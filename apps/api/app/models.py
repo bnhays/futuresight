@@ -30,6 +30,16 @@ class ParsedDeckCard(BaseModel):
     name: str
     section: str
     card_data: ImportedCardData | None = None
+    
+class Matchup(BaseModel):
+    opponent: str | None = None
+    opponent_deck: str | DeckSummary
+    played_deck: DeckSummary
+    sideboards: list[list[ParsedDeckCard]] = Field(default_factory=list)
+
+    
+class Tournament(BaseModel):
+    pass
 
 
 class DeckImportMetrics(BaseModel):
