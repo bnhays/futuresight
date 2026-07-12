@@ -34,10 +34,10 @@ logs:
 	docker compose logs -f
 
 api-install:
-	cd $(API_DIR) && pip install -r requirements.txt
+	cd $(API_DIR) && uv sync
 
 api-dev:
-	cd $(API_DIR) && uvicorn app.main:app --reload
+	cd $(API_DIR) && uv run uvicorn app.main:app --reload
 
 web-install:
 	cd $(WEB_DIR) && npm install

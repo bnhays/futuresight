@@ -64,8 +64,17 @@ The API will run at `http://localhost:8000`.
 
 ```sh
 cd apps/api
-pip install -r requirements.txt
-uvicorn app.main:app --reload
+uv sync
+uv run uvicorn app.main:app --reload
+```
+
+### Lock API Dependencies
+
+The API uses uv for Python dependency management. After changing `apps/api/pyproject.toml`, update the lockfile with:
+
+```sh
+cd apps/api
+uv lock
 ```
 
 ### Run The Frontend Locally
