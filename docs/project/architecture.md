@@ -1,35 +1,77 @@
 # Architecture
 
 ## Overview
-Future Sight is planed to use an HTML/JS/CSS/Astro front end for the user interface, a Python backend for application logic and validation, and MongoDB for storing decks, versions, matchup logs, and cached card data.
+Future Sight is implemented as a small full-stack monorepo with an Astro client, a FastAPI server, and MongoDB persistence. The current architecture supports deck import, deck browsing, deck detail inspection, deck editing, card quantity updates, deck deletion, Scryfall card lookup, and cached card data.
 
-## Major Components
-- Client / User Interface: Astro app for deck browsing, editing, version history views, matchup logging, and statistics displays.
-- Server / Application Logic: Python API service, probably using FastAP since it's what I've used in the past, for deck validation, versioning, statistics, and Scryfall integration.
-- Data / Persistence: MongoDB collections for decks, deck versions, matchup logs, tournament records, and cached Scryfall card data.
+The implementation is prototype-focused. Some planned product areas, including full legality checks, matchup tracking, tournament history, and completed deck statistics, are represented by placeholder modules or empty routes but are not complete user-facing features.
 
-## Component Responsibilities
-The client should handle user interaction, display deck information clearly, and submit edits or log entries to the backend. The backend should verify decks in format legalities, create and retrieve version records, calculate basic deck stats, and coordinate requests to Scryfall. MongoDB should store the project data in a structured way that preserves version history and keeps matchup records tied to the right deck.
+## Client
+The client lives in `apps/web` and is built with Astro. The pages are rendered as Astro routes with browser-side JavaScript for API calls and UI updates.
+
+- `/`: deck import page with deck metadata fields, decklist input, recent deck links, and random card art from saved decks.
+- `/decks`: saved deck list with color identity, optional thumbnail card, description, updated time, and delete controls.
+- `/decks/view?id={deck_id}`: deck detail page with grouped card tables, card inspection panel, edit form, quick quantity controls, save/discard controls, and delete action.
+
+The client reads `PUBLIC_API_URL` to determine the API base URL and defaults to `http://localhost:8000`.
+
+## Server
+The server lives in `apps/api` and is implemented with FastAPI. It uses Motor for asynchronous MongoDB access, Pydantic models for request and response shapes, and httpx for Scryfall integration.
+
+`apps/api/app/main.py` creates the FastAPI application, configures CORS from settings, includes routers, and creates indexes on startup.
+
+Implemented routers:
+
+- `/health`: returns basic API health status.
+- `/decks`: handles deck import, list, detail, update, and delete behavior.
+- `/cards`: currently returns an empty cached-card list placeholder.
+- `/matchups`: currently returns an empty matchup list placeholder.
+
+Supporting modules:
+
+- `deck_parser.py`: parses decklist text into mainboard and sideboard card entries.
+- `scryfall.py`: resolves card names through Scryfall and normalizes imported card data.
+- `db.py`: creates the MongoDB client and ensures indexes.
+- `models.py`: defines shared response models for decks, cards, import metrics, and placeholders.
+- `legality.py` and `stats.py`: placeholder modules for deferred legality and statistics work.
+
+## Routes
+Current API behavior is centered on deck management.
+
+- `POST /decks/import`: parses a submitted decklist, resolves card data, creates a deck document, creates an active deck version, and returns the imported deck.
+- `GET /decks`: returns deck summaries sorted by most recently updated, with optional `limit`.
+- `GET /decks/{deck_id}`: returns the active deck version with card data, warnings, import metrics, and raw decklist text.
+- `PUT /decks/{deck_id}`: reparses and resolves the submitted decklist, updates deck metadata, replaces the active deck version, and returns the updated deck.
+- `DELETE /decks/{deck_id}`: deletes the deck and its associated deck version records.
+- `GET /cards/`: placeholder route that currently returns an empty list.
+- `GET /matchups/`: placeholder route that currently returns an empty list.
+
+## Data
+MongoDB stores prototype data in the database configured by `MONGODB_DB`, which defaults to `futuresight`.
+
+Current collections:
+
+- `decks`: stores deck metadata, active version id, created timestamp, and updated timestamp.
+- `deck_versions`: stores the parsed cards, warnings, import metrics, raw decklist, and metadata snapshot for the deck's active version.
+- `cards`: caches Scryfall card data by normalized card name.
+
+The API creates indexes for cached card lookup by `cards.name_key` and deck sorting by `decks.updated_at`.
+
+Although the collection is named `deck_versions`, the current update flow deletes old version documents for a deck and inserts a replacement active version. Durable version history and version comparison are deferred.
 
 ## Data Flow
-A user opens a deck in the Astro interface, the front end requests the deck data from the Python backend, the backend reads the relevant deck and version records from MongoDB and checks legality or statistics as needed, the backend returns the processed result, the front end displays the updated deck, version history, or matchup information.
+Deck import and update follow the same main flow:
 
-## Initial Architecture Sketch
-- Astro UI
-  - deck list and deck detail pages
-  - edit forms and matchup log forms
-- Python API
-  - deck CRUD and versioning
-  - legality checks
-  - basic stat calculations
-  - Scryfall lookup and cache coordination
-- MongoDB
-  - decks
-  - deck versions
-  - matchup logs
-  - cached card data
+1. The Astro client submits deck metadata and raw decklist text to the API.
+2. The FastAPI server parses card quantities, names, and sideboard/mainboard sections.
+3. The server checks MongoDB for cached card data by normalized card name.
+4. Cache misses are resolved through Scryfall, then written to the `cards` collection.
+5. The server stores deck metadata in `decks` and the active parsed deck payload in `deck_versions`.
+6. The client navigates to or refreshes the deck detail view and renders grouped card information from the API response.
 
-## Open Questions
-- Should the Python backend use FastAPI, Flask, or another framework?
-- Should deck versions be stored as separate documents, or should a single deck document contain embedded history?
-- How much Scryfall card data should be cached locally at first?
+## Deferred Architecture Areas
+The current codebase leaves room for several planned areas:
+
+- Legality checks need real format rules and surfaced route/client behavior.
+- Deck statistics need complete calculation and display.
+- Matchups and tournaments need persistence models, API routes, and UI workflows.
+- Version history needs durable storage and user-facing comparison instead of replacing the previous active version.
