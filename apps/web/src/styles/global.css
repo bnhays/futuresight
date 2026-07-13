@@ -467,16 +467,18 @@ button:disabled:focus {
 .deck-sections {
   display: grid;
   gap: 1.25rem;
-  grid-template-columns: minmax(0, 1.65fr) minmax(28rem, 1fr);
+  grid-template-columns: minmax(9rem, 12rem) minmax(0, 46rem) minmax(20rem, 28rem);
   align-items: start;
-}
-
-.deck-sections-single {
-  grid-template-columns: minmax(0, 56rem);
   justify-content: center;
 }
 
-.deck-section {
+.deck-sections-single {
+  grid-template-columns: minmax(9rem, 12rem) minmax(0, 46rem);
+  justify-content: center;
+}
+
+.deck-section,
+.deck-card-preview-panel {
   display: grid;
   gap: 0.75rem;
   min-width: 0;
@@ -491,10 +493,137 @@ button:disabled:focus {
   text-align: center;
 }
 
+.deck-section-content {
+  min-width: 0;
+}
+
+.deck-card-preview-content {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.deck-card-preview-panel img,
+.deck-card-preview-empty {
+  width: 100%;
+  border: 1px solid #d9dee3;
+  border-radius: 8px;
+  background: #fbfcfd;
+}
+
+.deck-card-preview-empty {
+  display: grid;
+  place-items: center;
+  aspect-ratio: 0.716;
+  padding: 0.75rem;
+  color: #52606d;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.deck-card-preview-panel p {
+  margin: 0;
+  color: #374151;
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1.3;
+  text-align: center;
+}
+
 .card-qty {
   font-weight: 700;
   color: #111827;
   text-align: center;
+}
+
+.qty-control {
+  display: inline-grid;
+  grid-template-columns: 1rem minmax(1.4rem, auto);
+  align-items: center;
+  justify-content: start;
+  gap: 0.3rem;
+  min-width: 2.7rem;
+  transform: translateX(-0.65rem);
+}
+
+.qty-buttons {
+  display: grid;
+  gap: 0.12rem;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.card-row:hover .qty-buttons,
+.card-qty:focus-within .qty-buttons {
+  opacity: 1;
+}
+
+.qty-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1rem;
+  min-width: 1rem;
+  height: 1rem;
+  min-height: 1rem;
+  border-color: #9ca3af;
+  border-radius: 4px;
+  padding: 0;
+  color: #4b5563;
+  font-size: 0.8rem;
+  line-height: 1;
+  background: #ffffff;
+}
+
+.qty-button:hover,
+.qty-button:focus {
+  border-color: #2563eb;
+  color: #ffffff;
+  background: #2563eb;
+}
+
+.qty-button:disabled {
+  cursor: default;
+}
+
+.qty-button:disabled:hover,
+.qty-button:disabled:focus {
+  color: #4b5563;
+  background: #ffffff;
+}
+
+.qty-value {
+  display: inline-block;
+  min-width: 1.4rem;
+  text-align: center;
+}
+
+.unsaved-quantity-bar {
+  position: fixed;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  left: 1.5rem;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  max-width: 48rem;
+  margin: 0 auto;
+  padding: 0.8rem 1rem;
+  border: 1px solid #f2c94c;
+  border-left: 0.4rem solid #f2c94c;
+  border-radius: 8px;
+  color: #111827;
+  font-weight: 700;
+  background: #fff9db;
+  box-shadow: 0 0.85rem 2rem rgb(17 24 39 / 14%);
+}
+
+.unsaved-quantity-bar .deck-actions {
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 .deck-view-header {
@@ -564,13 +693,13 @@ button:disabled:focus {
   width: 100%;
   border-collapse: collapse;
   border: 0;
-  table-layout: fixed;
+  table-layout: auto;
   background: #ffffff;
 }
 
 .deck-table th,
 .deck-table td {
-  padding: 0.62rem 0.7rem;
+  padding: 0.42rem 0.5rem;
   border-bottom: 1px solid #e5e7eb;
   text-align: left;
   vertical-align: middle;
@@ -584,18 +713,25 @@ button:disabled:focus {
 
 .deck-table th:nth-child(1),
 .deck-table td:nth-child(1) {
-  width: 3.5rem;
+  width: 3.8rem;
   text-align: center;
+}
+
+.deck-table th:nth-child(2),
+.deck-table td:nth-child(2) {
+  width: auto;
 }
 
 .deck-table th:nth-child(3),
 .deck-table td:nth-child(3) {
-  width: 6.5rem;
+  width: 1%;
+  padding-right: 0.9rem;
+  white-space: nowrap;
 }
 
 .deck-table th:nth-child(4),
 .deck-table td:nth-child(4) {
-  width: 26%;
+  width: 34%;
 }
 
 .deck-table td {
@@ -621,9 +757,9 @@ button:disabled:focus {
 
 .mana-cost {
   display: inline-flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   align-items: center;
-  gap: 0.2rem;
+  gap: 0.14rem;
 }
 
 .mana-symbol {
@@ -820,7 +956,7 @@ button:disabled:focus {
 .inspect-panel {
   position: fixed;
   top: 5rem;
-  right: 1.5rem;
+  right: max(1.5rem, calc((100vw - 1440px) / 2 + 1.5rem));
   width: min(22rem, calc(100vw - 3rem));
   max-height: calc(100vh - 6.5rem);
   overflow: auto;
@@ -925,6 +1061,11 @@ button:disabled:focus {
   .deck-sections,
   .deck-list-item {
     grid-template-columns: 1fr;
+  }
+
+  .deck-card-preview-panel {
+    max-width: 13rem;
+    margin: 0 auto;
   }
 
   .inspect-panel {

@@ -65,6 +65,16 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       <button id="close-inspect" class="icon-button" type="button" aria-label="Close card inspection">x</button>
       <div id="inspect-content"></div>
     </aside>
+
+    <div id="unsaved-quantity-bar" class="unsaved-quantity-bar" role="status" aria-live="polite" hidden>
+      <span>You have unsaved changes</span>
+      <div class="deck-actions">
+        <button id="save-quantity-changes" class="action-button primary-button hollow-button" type="button">Save</button>
+        <button id="discard-quantity-changes" class="action-button muted hollow-button" type="button">
+          Discard changes
+        </button>
+      </div>
+    </div>
   </section>
 
   <script>
@@ -100,7 +110,11 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     const saveDeckButton = document.querySelector("#save-deck");
     const cancelEditButton = document.querySelector("#cancel-edit");
     const editStatus = document.querySelector("#edit-status");
+    const unsavedQuantityBar = document.querySelector("#unsaved-quantity-bar");
+    const saveQuantityChangesButton = document.querySelector("#save-quantity-changes");
+    const discardQuantityChangesButton = document.querySelector("#discard-quantity-changes");
     let currentDeck = null;
+    let initialDeck = null;
     let inspectedCardKey = null;
 
     function groupBySection(cards) {
@@ -179,12 +193,27 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       return lines.join("\n");
     }
 
+    function cloneDeck(deck) {
+      return JSON.parse(JSON.stringify(deck));
+    }
+
+    function hasUnsavedQuantityChanges() {
+      if (!currentDeck || !initialDeck) return false;
+      return deckToText(currentDeck.cards || []) !== deckToText(initialDeck.cards || []);
+    }
+
+    function updateUnsavedQuantityBar() {
+      unsavedQuantityBar.hidden = !hasUnsavedQuantityChanges();
+    }
+
     function openEditPanel() {
       if (!currentDeck) return;
       editDeckName.value = currentDeck.name || "";
       editDeckFormat.value = currentDeck.format || "modern";
       editDeckDescription.value = currentDeck.description || "";
-      editDecklist.value = currentDeck.raw_decklist || deckToText(currentDeck.cards || []);
+      editDecklist.value = hasUnsavedQuantityChanges()
+        ? deckToText(currentDeck.cards || [])
+        : currentDeck.raw_decklist || deckToText(currentDeck.cards || []);
       editStatus.textContent = "";
       deckEditPanel.hidden = false;
       closeInspectPanel();
@@ -372,13 +401,56 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       return wrapper;
     }
 
+    function getListType(typeLine) {
+      const cardTypes = String(typeLine || "").split("-")[0] || "";
+      const priorities = ["Creature", "Land", "Planeswalker", "Artifact", "Enchantment", "Instant", "Sorcery"];
+      return priorities.find((type) => new RegExp(`\\b${type}\\b`, "i").test(cardTypes)) || typeLine || "";
+    }
+
+    function renderHoverPreview(card, previewContent) {
+      if (!card || !previewContent) return;
+      const data = card.card_data || {};
+      previewContent.innerHTML = "";
+
+      if (data.image_uri) {
+        const image = document.createElement("img");
+        image.src = data.image_uri;
+        image.alt = data.name || card.name;
+        previewContent.append(image);
+      } else {
+        const placeholder = document.createElement("div");
+        placeholder.className = "deck-card-preview-empty";
+        placeholder.textContent = data.name || card.name;
+        previewContent.append(placeholder);
+      }
+
+      const typeText = document.createElement("p");
+      typeText.textContent = data.type_line || "Unknown";
+      previewContent.append(typeText);
+    }
+
     function renderDeck(cards) {
       deckSections.innerHTML = "";
       deckPanel.hidden = !cards.length;
+      let previewContent = null;
 
       const groups = groupBySection(cards);
       const hasSideboard = Boolean((groups.sideboard || []).length);
       deckSections.classList.toggle("deck-sections-single", !hasSideboard);
+      deckSections.classList.toggle("deck-sections-with-sideboard", hasSideboard);
+
+      const defaultPreviewCard = (groups.mainboard || [])[0] || cards[0];
+      if (defaultPreviewCard) {
+        const preview = document.createElement("section");
+        preview.className = "deck-card-preview-panel";
+
+        const previewContentEl = document.createElement("div");
+        previewContentEl.className = "deck-card-preview-content";
+        preview.append(previewContentEl);
+        deckSections.append(preview);
+        previewContent = previewContentEl;
+        renderHoverPreview(defaultPreviewCard, previewContent);
+      }
 
       ["mainboard", "sideboard"].forEach((section) => {
         const cardsInSection = groups[section] || [];
@@ -390,6 +462,9 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         const heading = document.createElement("h2");
         heading.textContent = sectionLabel(section);
         sectionEl.append(heading);
+
+        const sectionContent = document.createElement("div");
+        sectionContent.className = "deck-section-content";
 
         const table = document.createElement("table");
         table.className = "deck-table";
@@ -411,6 +486,12 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
             event.stopPropagation();
             toggleInspect(card, cardKey);
           });
+          row.addEventListener("mouseenter", () => {
+            renderHoverPreview(card, previewContent);
+          });
+          row.addEventListener("focus", () => {
+            renderHoverPreview(card, previewContent);
+          });
           row.addEventListener("keydown", (event) => {
             if (event.key === "Enter" || event.key === " ") {
               event.preventDefault();
@@ -420,7 +501,47 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 
           const quantity = document.createElement("td");
           quantity.className = "card-qty";
-          quantity.textContent = String(card.quantity);
+
+          const quantityControl = document.createElement("div");
+          quantityControl.className = "qty-control";
+          quantityControl.addEventListener("click", (event) => {
+            event.stopPropagation();
+          });
+          quantityControl.addEventListener("keydown", (event) => {
+            event.stopPropagation();
+          });
+
+          const quantityButtons = document.createElement("div");
+          quantityButtons.className = "qty-buttons";
+
+          const incrementButton = document.createElement("button");
+          incrementButton.className = "qty-button";
+          incrementButton.type = "button";
+          incrementButton.textContent = "+";
+          incrementButton.setAttribute("aria-label", `Increase quantity for ${data.name || card.name}`);
+          incrementButton.addEventListener("click", (event) => {
+            event.stopPropagation();
+            changeCardQuantity(card, 1);
+          });
+
+          const decrementButton = document.createElement("button");
+          decrementButton.className = "qty-button";
+          decrementButton.type = "button";
+          decrementButton.textContent = "-";
+          decrementButton.disabled = card.quantity <= 0;
+          decrementButton.setAttribute("aria-label", `Decrease quantity for ${data.name || card.name}`);
+          decrementButton.addEventListener("click", (event) => {
+            event.stopPropagation();
+            changeCardQuantity(card, -1);
+          });
+
+          const quantityValue = document.createElement("span");
+          quantityValue.className = "qty-value";
+          quantityValue.textContent = String(card.quantity);
+
+          quantityButtons.append(incrementButton, decrementButton);
+          quantityControl.append(quantityButtons, quantityValue);
+          quantity.append(quantityControl);
 
           const name = document.createElement("td");
           const nameWrap = document.createElement("span");
@@ -434,15 +555,22 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
           mana.append(renderManaCost(data.mana_cost || ""));
 
           const type = document.createElement("td");
-          type.textContent = data.type_line || "";
+          type.textContent = getListType(data.type_line || "");
 
           row.append(quantity, name, mana, type);
           tbody.append(row);
         });
         table.append(tbody);
-        sectionEl.append(table);
+        sectionContent.append(table);
+        sectionEl.append(sectionContent);
         deckSections.append(sectionEl);
       });
+    }
+
+    function changeCardQuantity(card, delta) {
+      card.quantity = Math.max(0, Number(card.quantity || 0) + delta);
+      renderDeck(currentDeck.cards || []);
+      updateUnsavedQuantityBar();
     }
 
     function closeInspectPanel() {
@@ -541,14 +669,57 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         }
 
         currentDeck = deck;
+        initialDeck = cloneDeck(deck);
         renderTitle(deck);
         renderWarnings(deck.warnings || []);
         renderDeck(deck.cards || []);
+        updateUnsavedQuantityBar();
       } catch (error) {
         deckTitle.textContent = "Deck Detail";
         deckMeta.textContent = error instanceof Error ? error.message : "Could not load deck.";
         deckPanel.hidden = true;
       }
+    }
+
+    async function saveQuantityChanges() {
+      if (!currentDeck || !deckId) return;
+
+      saveQuantityChangesButton.disabled = true;
+      discardQuantityChangesButton.disabled = true;
+
+      try {
+        const response = await fetch(`${API_URL}/decks/${deckId}`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: currentDeck.name || "",
+            format: currentDeck.format || "modern",
+            description: currentDeck.description || "",
+            decklist: deckToText(currentDeck.cards || []),
+          }),
+        });
+
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.detail || "Could not save deck.");
+        }
+
+        window.location.reload();
+      } catch (error) {
+        deckMeta.textContent = error instanceof Error ? error.message : "Could not save deck.";
+        saveQuantityChangesButton.disabled = false;
+        discardQuantityChangesButton.disabled = false;
+      }
+    }
+
+    function discardQuantityChanges() {
+      if (!initialDeck) return;
+      currentDeck = cloneDeck(initialDeck);
+      closeInspectPanel();
+      renderDeck(currentDeck.cards || []);
+      updateUnsavedQuantityBar();
+      saveQuantityChangesButton.disabled = false;
+      discardQuantityChangesButton.disabled = false;
     }
 
     async function saveDeck(event) {
@@ -628,6 +799,8 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     deckEditForm.addEventListener("submit", saveDeck);
     cancelEditButton.addEventListener("click", closeEditPanel);
     deleteDeckButton.addEventListener("click", deleteDeck);
+    saveQuantityChangesButton.addEventListener("click", saveQuantityChanges);
+    discardQuantityChangesButton.addEventListener("click", discardQuantityChanges);
 
     loadDeck();
   </script>
