@@ -467,13 +467,13 @@ button:disabled:focus {
 .deck-sections {
   display: grid;
   gap: 1.25rem;
-  grid-template-columns: minmax(9rem, 12rem) minmax(0, 46rem) minmax(20rem, 28rem);
+  grid-template-columns: minmax(11rem, 15rem) minmax(0, 48rem) minmax(18rem, 25rem);
   align-items: start;
   justify-content: center;
 }
 
 .deck-sections-single {
-  grid-template-columns: minmax(9rem, 12rem) minmax(0, 46rem);
+  grid-template-columns: minmax(11rem, 15rem) minmax(0, 48rem);
   justify-content: center;
 }
 
@@ -731,18 +731,38 @@ button:disabled:focus {
 
 .deck-table th:nth-child(4),
 .deck-table td:nth-child(4) {
-  width: 34%;
+  width: 8.5rem;
+  max-width: 8.5rem;
+  padding-right: 0.4rem;
+  white-space: nowrap;
 }
 
 .deck-table td {
   overflow-wrap: anywhere;
 }
 
+.deck-sections-with-sideboard .deck-table th:nth-child(4),
+.deck-sections-with-sideboard .deck-table td:nth-child(4) {
+  width: 6.5rem;
+  max-width: 6.5rem;
+}
+
 .card-name {
   display: inline-flex;
   align-items: center;
-  flex-wrap: wrap;
+  max-width: 100%;
+  flex-wrap: nowrap;
   gap: 0.45rem;
+}
+
+.card-name > span:first-child {
+  min-width: 0;
+  overflow-wrap: normal;
+}
+
+.card-name .color-squares {
+  flex: 0 0 auto;
+  flex-wrap: nowrap;
 }
 
 .card-row {
