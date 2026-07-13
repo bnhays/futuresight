@@ -353,6 +353,7 @@ button:disabled:focus {
   color: #52606d;
   font-size: 0.88rem;
   line-height: 1.35;
+  text-align: center;
 }
 
 .recent-decks-list {
@@ -470,6 +471,11 @@ button:disabled:focus {
   align-items: start;
 }
 
+.deck-sections-single {
+  grid-template-columns: minmax(0, 56rem);
+  justify-content: center;
+}
+
 .deck-section {
   display: grid;
   gap: 0.75rem;
@@ -481,9 +487,14 @@ button:disabled:focus {
   background: #ffffff;
 }
 
+.deck-section h2 {
+  text-align: center;
+}
+
 .card-qty {
   font-weight: 700;
   color: #111827;
+  text-align: center;
 }
 
 .deck-view-header {
@@ -526,27 +537,27 @@ button:disabled:focus {
 }
 
 .color-w {
-  background: #f5efd8;
+  background: #f2f0bd;
 }
 
 .color-u {
-  background: #3b82f6;
+  background: #b8d9f5;
 }
 
 .color-b {
-  background: #111827;
+  background: #b7ada8;
 }
 
 .color-r {
-  background: #ef4444;
+  background: #f39a76;
 }
 
 .color-g {
-  background: #10b981;
+  background: #9fd3aa;
 }
 
 .color-c {
-  background: #94a3b8;
+  background: #c9c3ba;
 }
 
 .deck-table {
@@ -572,10 +583,9 @@ button:disabled:focus {
 }
 
 .deck-table th:nth-child(1),
-.deck-table td:nth-child(1),
-.deck-table th:nth-child(5),
-.deck-table td:nth-child(5) {
+.deck-table td:nth-child(1) {
   width: 3.5rem;
+  text-align: center;
 }
 
 .deck-table th:nth-child(3),
@@ -612,51 +622,199 @@ button:disabled:focus {
 .mana-cost {
   display: inline-flex;
   flex-wrap: wrap;
-  gap: 0.25rem;
+  align-items: center;
+  gap: 0.2rem;
 }
 
 .mana-symbol {
-  display: inline-grid;
-  place-items: center;
-  min-width: 1.35rem;
-  height: 1.35rem;
-  border: 1px solid rgb(0 0 0 / 16%);
-  border-radius: 999px;
-  padding: 0 0.25rem;
-  font-size: 0.82rem;
-  font-weight: 400;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 1.32rem;
+  width: 1.32rem;
+  height: 1.32rem;
+  font-size: 0.96rem;
   line-height: 1;
+  text-align: center;
+  vertical-align: -0.18em;
+}
+
+.mana-symbol.ms::before {
+  display: block;
+  width: 100%;
+  line-height: 1;
+  text-align: center;
+}
+
+.mana-symbol.ms::after {
+  box-sizing: border-box;
+}
+
+.mana-symbol-custom {
+  --mana-left-bg: #c9c3ba;
+  --mana-right-bg: #c9c3ba;
+  --mana-solid-bg: #c9c3ba;
+  position: relative;
+  overflow: hidden;
+  border-radius: 999px;
   color: #111827;
-  background: #e5e7eb;
+  background: linear-gradient(135deg, var(--mana-left-bg) 0 49%, var(--mana-right-bg) 51% 100%);
+  box-shadow: inset 0 0 0 1px rgb(0 0 0 / 8%);
 }
 
-.mana-w {
-  background: #f5efd8;
+.mana-symbol-snow {
+  background: #f7f9fb;
 }
 
-.mana-u {
-  color: #ffffff;
-  background: #3b82f6;
+.mana-symbol-solid {
+  background: var(--mana-solid-bg);
 }
 
-.mana-b {
-  color: #ffffff;
-  background: #111827;
+.mana-solid-white {
+  --mana-solid-bg: #f2f0bd;
 }
 
-.mana-r {
-  color: #ffffff;
-  background: #ef4444;
+.mana-solid-blue {
+  --mana-solid-bg: #b8d9f5;
 }
 
-.mana-g {
-  color: #ffffff;
-  background: #10b981;
+.mana-solid-black {
+  --mana-solid-bg: #b7ada8;
 }
 
-.mana-c,
-.mana-generic {
-  background: #d1d5db;
+.mana-solid-red {
+  --mana-solid-bg: #f39a76;
+}
+
+.mana-solid-green {
+  --mana-solid-bg: #9fd3aa;
+}
+
+.mana-solid-colorless,
+.mana-solid-generic {
+  --mana-solid-bg: #c9c3ba;
+}
+
+.mana-split-left-white {
+  --mana-left-bg: #f2f0bd;
+}
+
+.mana-split-left-blue {
+  --mana-left-bg: #b8d9f5;
+}
+
+.mana-split-left-black {
+  --mana-left-bg: #b7ada8;
+}
+
+.mana-split-left-red {
+  --mana-left-bg: #f39a76;
+}
+
+.mana-split-left-green {
+  --mana-left-bg: #9fd3aa;
+}
+
+.mana-split-left-colorless,
+.mana-split-left-generic {
+  --mana-left-bg: #c9c3ba;
+}
+
+.mana-split-right-white {
+  --mana-right-bg: #f2f0bd;
+}
+
+.mana-split-right-blue {
+  --mana-right-bg: #b8d9f5;
+}
+
+.mana-split-right-black {
+  --mana-right-bg: #b7ada8;
+}
+
+.mana-split-right-red {
+  --mana-right-bg: #f39a76;
+}
+
+.mana-split-right-green {
+  --mana-right-bg: #9fd3aa;
+}
+
+.mana-split-right-colorless,
+.mana-split-right-generic {
+  --mana-right-bg: #c9c3ba;
+}
+
+.mana-symbol-half,
+.mana-symbol-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 1;
+}
+
+.mana-symbol-mark.ms::before {
+  display: block;
+  line-height: 1;
+  text-align: center;
+}
+
+.mana-symbol-half {
+  position: absolute;
+  z-index: 1;
+  width: 0.68rem;
+  height: 0.68rem;
+  font-size: 0.56rem;
+  font-weight: 700;
+}
+
+.mana-symbol-half-left {
+  top: 0.08rem;
+  left: 0.14rem;
+}
+
+.mana-symbol-half-right {
+  right: 0.14rem;
+  bottom: 0.08rem;
+}
+
+.mana-symbol-half .mana-symbol-mark {
+  font-size: 0.58rem;
+}
+
+.mana-symbol-phyrexian-mark {
+  position: relative;
+  z-index: 1;
+  font-size: 0.98rem;
+}
+
+.mana-symbol-snow .mana-symbol-mark {
+  font-size: 1rem;
+}
+
+.mana-symbol.ms-0::before,
+.mana-symbol.ms-1::before,
+.mana-symbol.ms-2::before,
+.mana-symbol.ms-3::before,
+.mana-symbol.ms-4::before,
+.mana-symbol.ms-5::before,
+.mana-symbol.ms-6::before,
+.mana-symbol.ms-7::before,
+.mana-symbol.ms-8::before,
+.mana-symbol.ms-9::before,
+.mana-symbol.ms-10::before,
+.mana-symbol.ms-11::before,
+.mana-symbol.ms-12::before,
+.mana-symbol.ms-13::before,
+.mana-symbol.ms-14::before,
+.mana-symbol.ms-15::before,
+.mana-symbol.ms-16::before,
+.mana-symbol.ms-17::before,
+.mana-symbol.ms-18::before,
+.mana-symbol.ms-19::before,
+.mana-symbol.ms-20::before,
+.mana-symbol.ms-x::before {
+  transform: scale(0.86);
 }
 
 .inspect-panel {
