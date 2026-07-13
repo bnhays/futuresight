@@ -18,6 +18,7 @@ class DeckImportRequest(BaseModel):
     name: str | None = None
     format: str = "modern"
     description: str | None = None
+    thumbnail_card_name: str | None = None
 
 
 class DeckImportResponse(BaseModel):
@@ -26,6 +27,7 @@ class DeckImportResponse(BaseModel):
     name: str | None = None
     format: str
     description: str | None = None
+    thumbnail_card_name: str | None = None
     cards: list[ParsedDeckCard]
     warnings: list[str] = Field(default_factory=list)
     import_metrics: DeckImportMetrics
@@ -57,13 +59,35 @@ def get_deck_color_identity(cards: list[dict]) -> list[str]:
     return [color for color in COLOR_ORDER if color in colors]
 
 
-def serialize_deck_summary(deck: dict, color_identity: list[str] | None = None) -> DeckSummary:
+def find_thumbnail_card(cards: list[dict], thumbnail_card_name: str | None) -> ParsedDeckCard | None:
+    thumbnail_key = normalize_name_key(thumbnail_card_name or "")
+    if not thumbnail_key:
+        return None
+
+    for card in cards:
+        card_name = card.get("name") or (card.get("card_data") or {}).get("name") or ""
+        if normalize_name_key(card_name) == thumbnail_key:
+            return ParsedDeckCard(**card)
+
+    return None
+
+
+def normalize_thumbnail_card_name(value: str | None) -> str | None:
+    thumbnail_card_name = (value or "").strip()
+    return thumbnail_card_name or None
+
+
+def serialize_deck_summary(deck: dict, cards: list[dict] | None = None) -> DeckSummary:
+    active_cards = cards or []
+    thumbnail_card_name = normalize_thumbnail_card_name(deck.get("thumbnail_card_name"))
     return DeckSummary(
         id=str(deck["_id"]),
         name=deck.get("name") or "Untitled Deck",
         format=deck.get("format") or "unknown",
         description=deck.get("description"),
-        color_identity=color_identity or [],
+        thumbnail_card_name=thumbnail_card_name,
+        thumbnail_card=find_thumbnail_card(active_cards, thumbnail_card_name),
+        color_identity=get_deck_color_identity(active_cards),
         active_version_id=str(deck["active_version_id"]) if deck.get("active_version_id") else None,
         updated_at=serialize_datetime(deck.get("updated_at")),
     )
@@ -227,12 +251,14 @@ async def import_deck(payload: DeckImportRequest) -> DeckImportResponse:
     deck_name = (payload.name or "").strip() or "Untitled Deck"
     deck_format = payload.format.strip().lower() or "modern"
     deck_description = normalize_description(payload.description)
+    thumbnail_card_name = normalize_thumbnail_card_name(payload.thumbnail_card_name)
 
     deck_result = await db.decks.insert_one(
         {
             "name": deck_name,
             "format": deck_format,
             "description": deck_description,
+            "thumbnail_card_name": thumbnail_card_name,
             "active_version_id": None,
             "created_at": now,
             "updated_at": now,
@@ -244,6 +270,7 @@ async def import_deck(payload: DeckImportRequest) -> DeckImportResponse:
             "name": deck_name,
             "format": deck_format,
             "description": deck_description,
+            "thumbnail_card_name": thumbnail_card_name,
             "cards": [card.model_dump() for card in cards],
             "warnings": warnings,
             "import_metrics": import_metrics.model_dump(),
@@ -262,6 +289,7 @@ async def import_deck(payload: DeckImportRequest) -> DeckImportResponse:
         name=deck_name,
         format=deck_format,
         description=deck_description,
+        thumbnail_card_name=thumbnail_card_name,
         cards=cards,
         warnings=warnings,
         import_metrics=import_metrics,
@@ -282,7 +310,7 @@ async def list_decks(limit: int | None = Query(default=None, ge=1, le=100)) -> l
             version = await db.deck_versions.find_one({"_id": deck["active_version_id"]})
 
         summaries.append(
-            serialize_deck_summary(deck, get_deck_color_identity(version.get("cards", []) if version else []))
+            serialize_deck_summary(deck, version.get("cards", []) if version else [])
         )
 
     return summaries
@@ -304,7 +332,7 @@ async def get_deck(deck_id: str) -> DeckDetail:
         raise HTTPException(status_code=404, detail="Deck version not found.")
 
     cards = version.get("cards", [])
-    summary = serialize_deck_summary(deck, get_deck_color_identity(cards))
+    summary = serialize_deck_summary(deck, cards)
     return DeckDetail(
         **summary.model_dump(),
         cards=[ParsedDeckCard(**card) for card in cards],
@@ -328,12 +356,14 @@ async def update_deck(deck_id: str, payload: DeckImportRequest) -> DeckUpdateRes
     deck_name = (payload.name or "").strip() or "Untitled Deck"
     deck_format = payload.format.strip().lower() or "modern"
     deck_description = normalize_description(payload.description)
+    thumbnail_card_name = normalize_thumbnail_card_name(payload.thumbnail_card_name)
 
     version_document = {
         "deck_id": deck_object_id,
         "name": deck_name,
         "format": deck_format,
         "description": deck_description,
+        "thumbnail_card_name": thumbnail_card_name,
         "cards": [card.model_dump() for card in cards],
         "warnings": warnings,
         "import_metrics": import_metrics.model_dump(),
@@ -352,6 +382,7 @@ async def update_deck(deck_id: str, payload: DeckImportRequest) -> DeckUpdateRes
                 "name": deck_name,
                 "format": deck_format,
                 "description": deck_description,
+                "thumbnail_card_name": thumbnail_card_name,
                 "active_version_id": active_version_id,
                 "updated_at": now,
             }
@@ -364,6 +395,7 @@ async def update_deck(deck_id: str, payload: DeckImportRequest) -> DeckUpdateRes
         name=deck_name,
         format=deck_format,
         description=deck_description,
+        thumbnail_card_name=thumbnail_card_name,
         cards=cards,
         warnings=warnings,
         import_metrics=import_metrics,

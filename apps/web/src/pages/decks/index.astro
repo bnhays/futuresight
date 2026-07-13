@@ -43,6 +43,29 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       return wrapper;
     }
 
+    function renderThumbnailCard(deck) {
+      const card = deck.thumbnail_card;
+      if (!card) return null;
+
+      const data = card.card_data || {};
+      const thumbnail = document.createElement("span");
+      thumbnail.className = "deck-list-thumbnail";
+
+      if (data.image_uri) {
+        const image = document.createElement("img");
+        image.src = data.image_uri;
+        image.alt = data.name || card.name || deck.thumbnail_card_name || "Deck thumbnail card";
+        thumbnail.append(image);
+      } else {
+        const placeholder = document.createElement("span");
+        placeholder.className = "deck-list-thumbnail-empty";
+        placeholder.textContent = data.name || card.name || deck.thumbnail_card_name || "Thumbnail";
+        thumbnail.append(placeholder);
+      }
+
+      return thumbnail;
+    }
+
     function renderDecks(decks) {
       allDecksList.innerHTML = "";
 
@@ -61,6 +84,9 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         const link = document.createElement("a");
         link.className = "deck-list-content deck-list-link";
         link.href = `/decks/view?id=${encodeURIComponent(deck.id)}`;
+
+        const deckInfo = document.createElement("span");
+        deckInfo.className = "deck-list-info";
 
         const name = document.createElement("span");
         name.className = "recent-deck-name";
@@ -83,7 +109,15 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         description.textContent = deck.description || "";
         description.hidden = !deck.description;
 
-        link.append(name, updatedAt, description, meta);
+        deckInfo.append(name, updatedAt, description, meta);
+
+        const thumbnail = renderThumbnailCard(deck);
+        if (thumbnail) {
+          link.classList.add("deck-list-link-with-thumbnail");
+          link.append(thumbnail, deckInfo);
+        } else {
+          link.append(deckInfo);
+        }
 
         const deleteButton = document.createElement("button");
         deleteButton.className = "action-button danger-button hollow-button deck-list-delete";

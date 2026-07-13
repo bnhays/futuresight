@@ -44,6 +44,11 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
           <input id="edit-deck-description" name="description" type="text" maxlength="150" autocomplete="off" />
         </label>
 
+        <label>
+          <span>Thumbnail Card</span>
+          <input id="edit-thumbnail-card-name" name="thumbnail_card_name" type="text" autocomplete="off" />
+        </label>
+
         <label for="edit-decklist">Decklist</label>
         <textarea id="edit-decklist" name="decklist" rows="18" spellcheck="false"></textarea>
 
@@ -80,6 +85,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
   <script>
     const API_URL = import.meta.env.PUBLIC_API_URL || "http://localhost:8000";
     const COLOR_ORDER = ["W", "U", "B", "R", "G", "C"];
+    const MAINBOARD_TYPE_ORDER = ["Creature", "Planeswalker", "Artifact", "Enchantment", "Instant", "Sorcery", "Land"];
     const COLOR_LABELS = {
       W: "White",
       U: "Blue",
@@ -106,6 +112,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     const editDeckName = document.querySelector("#edit-deck-name");
     const editDeckFormat = document.querySelector("#edit-deck-format");
     const editDeckDescription = document.querySelector("#edit-deck-description");
+    const editThumbnailCardName = document.querySelector("#edit-thumbnail-card-name");
     const editDecklist = document.querySelector("#edit-decklist");
     const saveDeckButton = document.querySelector("#save-deck");
     const cancelEditButton = document.querySelector("#cancel-edit");
@@ -129,6 +136,19 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     function sectionLabel(section) {
       if (section === "sideboard") return "Sideboard";
       return "Mainboard";
+    }
+
+    function typeSectionLabel(type) {
+      const labels = {
+        Creature: "Creatures",
+        Planeswalker: "Planeswalkers",
+        Artifact: "Artifacts",
+        Enchantment: "Enchantments",
+        Instant: "Instants",
+        Sorcery: "Sorceries",
+        Land: "Lands",
+      };
+      return labels[type] || type || "Other";
     }
 
     function formatFormat(format) {
@@ -211,6 +231,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       editDeckName.value = currentDeck.name || "";
       editDeckFormat.value = currentDeck.format || "modern";
       editDeckDescription.value = currentDeck.description || "";
+      editThumbnailCardName.value = currentDeck.thumbnail_card_name || "";
       editDecklist.value = hasUnsavedQuantityChanges()
         ? deckToText(currentDeck.cards || [])
         : currentDeck.raw_decklist || deckToText(currentDeck.cards || []);
@@ -407,6 +428,38 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       return priorities.find((type) => new RegExp(`\\b${type}\\b`, "i").test(cardTypes)) || typeLine || "";
     }
 
+    function groupMainboardByType(cards) {
+      const groups = cards.reduce((typeGroups, card) => {
+        const type = getListType(card.card_data?.type_line || "") || "Other";
+        typeGroups[type] = typeGroups[type] || [];
+        typeGroups[type].push(card);
+        return typeGroups;
+      }, {});
+
+      const orderedTypes = [
+        ...MAINBOARD_TYPE_ORDER.filter((type) => groups[type]?.length),
+        ...Object.keys(groups)
+          .filter((type) => !MAINBOARD_TYPE_ORDER.includes(type))
+          .sort((first, second) => first.localeCompare(second)),
+      ];
+
+      return orderedTypes.map((type) => [type, groups[type]]);
+    }
+
+    function normalizeCardName(name) {
+      return String(name || "").trim().toLowerCase().replace(/\s+/g, " ");
+    }
+
+    function findThumbnailCard(cards) {
+      const thumbnailCardName = normalizeCardName(currentDeck?.thumbnail_card_name);
+      if (!thumbnailCardName) return null;
+
+      return (cards || []).find((card) => {
+        const data = card.card_data || {};
+        return [card.name, data.name].some((name) => normalizeCardName(name) === thumbnailCardName);
+      }) || null;
+    }
+
     function renderHoverPreview(card, previewContent) {
       if (!card || !previewContent) return;
       const data = card.card_data || {};
@@ -434,50 +487,35 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       deckPanel.hidden = !cards.length;
       let previewContent = null;
 
-      const groups = groupBySection(cards);
-      const hasSideboard = Boolean((groups.sideboard || []).length);
-      deckSections.classList.toggle("deck-sections-single", !hasSideboard);
-      deckSections.classList.toggle("deck-sections-with-sideboard", hasSideboard);
-
-      const defaultPreviewCard = (groups.mainboard || [])[0] || cards[0];
-      if (defaultPreviewCard) {
-        const preview = document.createElement("section");
-        preview.className = "deck-card-preview-panel";
-
-        const previewContentEl = document.createElement("div");
-        previewContentEl.className = "deck-card-preview-content";
-        preview.append(previewContentEl);
-        deckSections.append(preview);
-        previewContent = previewContentEl;
-        renderHoverPreview(defaultPreviewCard, previewContent);
-      }
-
-      ["mainboard", "sideboard"].forEach((section) => {
-        const cardsInSection = groups[section] || [];
-        if (!cardsInSection.length) return;
+      function renderDeckSection(section, cardsInSection, headingText, options = {}) {
+        if (!cardsInSection.length) return null;
+        const { extraClass = "", typeKey = "" } = options;
+        const isMainboardLandSection = section === "mainboard" && typeKey === "Land";
 
         const sectionEl = document.createElement("section");
-        sectionEl.className = `deck-section deck-section-${section}`;
+        sectionEl.className = `deck-section deck-section-${section}${extraClass ? ` ${extraClass}` : ""}`;
 
         const heading = document.createElement("h2");
-        heading.textContent = sectionLabel(section);
+        heading.textContent = headingText;
         sectionEl.append(heading);
 
         const sectionContent = document.createElement("div");
         sectionContent.className = "deck-section-content";
 
         const table = document.createElement("table");
-        table.className = "deck-table";
+        table.className = `deck-table${isMainboardLandSection ? " deck-table-no-mana" : ""}`;
 
         const thead = document.createElement("thead");
-        thead.innerHTML = "<tr><th>Qty</th><th>Name</th><th>Mana</th><th>Type</th></tr>";
+        thead.innerHTML = isMainboardLandSection
+          ? "<tr><th>Qty</th><th>Name</th><th>Type</th></tr>"
+          : "<tr><th>Qty</th><th>Name</th><th>Mana</th><th>Type</th></tr>";
         table.append(thead);
 
         const tbody = document.createElement("tbody");
         cardsInSection.forEach((card) => {
           const data = card.card_data || {};
           const row = document.createElement("tr");
-          const cardKey = `${section}:${card.name}:${card.quantity}:${data.name || ""}`;
+          const cardKey = `${section}:${headingText}:${card.name}:${card.quantity}:${data.name || ""}`;
           row.className = "card-row";
           row.tabIndex = 0;
           row.setAttribute("role", "button");
@@ -548,23 +586,72 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
           nameWrap.className = "card-name";
           const nameText = document.createElement("span");
           nameText.textContent = data.name || card.name;
-          nameWrap.append(nameText, renderColorSquares(data.color_identity || []));
+          nameWrap.append(nameText);
           name.append(nameWrap);
 
-          const mana = document.createElement("td");
-          mana.append(renderManaCost(data.mana_cost || ""));
-
           const type = document.createElement("td");
-          type.textContent = getListType(data.type_line || "");
+          const typeWrap = document.createElement("span");
+          typeWrap.className = "card-type";
+          const typeText = document.createElement("span");
+          typeText.textContent = getListType(data.type_line || "");
+          typeWrap.append(typeText, renderColorSquares(data.color_identity || []));
+          type.append(typeWrap);
 
-          row.append(quantity, name, mana, type);
+          if (isMainboardLandSection) {
+            row.append(quantity, name, type);
+          } else {
+            const mana = document.createElement("td");
+            mana.append(renderManaCost(data.mana_cost || ""));
+            row.append(quantity, name, mana, type);
+          }
           tbody.append(row);
         });
         table.append(tbody);
         sectionContent.append(table);
         sectionEl.append(sectionContent);
-        deckSections.append(sectionEl);
-      });
+        return sectionEl;
+      }
+
+      const groups = groupBySection(cards);
+      const hasSideboard = Boolean((groups.sideboard || []).length);
+      deckSections.classList.toggle("deck-sections-single", !hasSideboard);
+      deckSections.classList.toggle("deck-sections-with-sideboard", hasSideboard);
+
+      const defaultPreviewCard = findThumbnailCard(cards) || (groups.mainboard || [])[0] || cards[0];
+      if (defaultPreviewCard) {
+        const preview = document.createElement("section");
+        preview.className = "deck-card-preview-panel";
+
+        const previewContentEl = document.createElement("div");
+        previewContentEl.className = "deck-card-preview-content";
+        preview.append(previewContentEl);
+        deckSections.append(preview);
+        previewContent = previewContentEl;
+        renderHoverPreview(defaultPreviewCard, previewContent);
+      }
+
+      const mainboardTypes = groupMainboardByType(groups.mainboard || []);
+      if (mainboardTypes.length) {
+        const mainboardGrid = document.createElement("div");
+        mainboardGrid.className = "mainboard-type-grid";
+        const mainboardColumns = [document.createElement("div"), document.createElement("div")];
+        mainboardColumns.forEach((column) => {
+          column.className = "mainboard-type-column";
+          mainboardGrid.append(column);
+        });
+
+        mainboardTypes.forEach(([type, typeCards], index) => {
+          const sectionEl = renderDeckSection("mainboard", typeCards, typeSectionLabel(type), {
+            extraClass: "deck-section-mainboard-type",
+            typeKey: type,
+          });
+          if (sectionEl) mainboardColumns[index % mainboardColumns.length].append(sectionEl);
+        });
+        deckSections.append(mainboardGrid);
+      }
+
+      const sideboardSection = renderDeckSection("sideboard", groups.sideboard || [], sectionLabel("sideboard"));
+      if (sideboardSection) deckSections.append(sideboardSection);
     }
 
     function changeCardQuantity(card, delta) {
@@ -695,6 +782,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
             name: currentDeck.name || "",
             format: currentDeck.format || "modern",
             description: currentDeck.description || "",
+            thumbnail_card_name: currentDeck.thumbnail_card_name || "",
             decklist: deckToText(currentDeck.cards || []),
           }),
         });
@@ -742,6 +830,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
             name: editDeckName.value.trim(),
             format: editDeckFormat.value,
             description: editDeckDescription.value.trim(),
+            thumbnail_card_name: editThumbnailCardName.value.trim(),
             decklist,
           }),
         });

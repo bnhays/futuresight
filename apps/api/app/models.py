@@ -1,16 +1,6 @@
 from pydantic import BaseModel, Field
 
 
-class DeckSummary(BaseModel):
-    id: str
-    name: str
-    format: str
-    description: str | None = None
-    color_identity: list[str] = Field(default_factory=list)
-    active_version_id: str | None = None
-    updated_at: str | None = None
-
-
 class ImportedCardData(BaseModel):
     name: str | None = None
     scryfall_id: str | None = None
@@ -30,6 +20,18 @@ class ParsedDeckCard(BaseModel):
     name: str
     section: str
     card_data: ImportedCardData | None = None
+
+
+class DeckSummary(BaseModel):
+    id: str
+    name: str
+    format: str
+    description: str | None = None
+    thumbnail_card_name: str | None = None
+    thumbnail_card: ParsedDeckCard | None = None
+    color_identity: list[str] = Field(default_factory=list)
+    active_version_id: str | None = None
+    updated_at: str | None = None
     
 class Matchup(BaseModel):
     opponent: str | None = None

@@ -398,6 +398,48 @@ button:disabled:focus {
   text-decoration: none;
 }
 
+.deck-list-link-with-thumbnail {
+  grid-template-columns: 4.75rem minmax(0, 1fr);
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.deck-list-info {
+  display: grid;
+  min-width: 0;
+  gap: 0.25rem;
+}
+
+.deck-list-thumbnail,
+.deck-list-thumbnail img,
+.deck-list-thumbnail-empty {
+  display: block;
+  width: 4.75rem;
+}
+
+.deck-list-thumbnail img,
+.deck-list-thumbnail-empty {
+  aspect-ratio: 0.716;
+  border: 1px solid #d9dee3;
+  border-radius: 6px;
+  background: #ffffff;
+}
+
+.deck-list-thumbnail img {
+  object-fit: cover;
+}
+
+.deck-list-thumbnail-empty {
+  display: grid;
+  place-items: center;
+  padding: 0.4rem;
+  color: #52606d;
+  font-size: 0.72rem;
+  font-weight: 700;
+  line-height: 1.2;
+  text-align: center;
+}
+
 .deck-list-delete {
   position: relative;
   z-index: 1;
@@ -482,7 +524,6 @@ button:disabled:focus {
   display: grid;
   gap: 0.75rem;
   min-width: 0;
-  overflow-x: auto;
   padding: 1rem;
   border: 1px solid #d9dee3;
   border-radius: 8px;
@@ -490,7 +531,31 @@ button:disabled:focus {
 }
 
 .deck-section h2 {
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.15;
   text-align: center;
+}
+
+.deck-section-mainboard-type {
+  gap: 0.45rem;
+  padding: 0.55rem 0.45rem 0.65rem;
+  overflow-x: hidden;
+}
+
+.mainboard-type-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1.25rem;
+  min-width: 0;
+  align-items: start;
+}
+
+.mainboard-type-column {
+  display: grid;
+  gap: 1.25rem;
+  min-width: 0;
+  align-content: start;
 }
 
 .deck-section-content {
@@ -693,13 +758,14 @@ button:disabled:focus {
   width: 100%;
   border-collapse: collapse;
   border: 0;
-  table-layout: auto;
+  table-layout: fixed;
   background: #ffffff;
+  font-size: 0.9rem;
 }
 
 .deck-table th,
 .deck-table td {
-  padding: 0.42rem 0.5rem;
+  padding: 0.34rem 0.36rem;
   border-bottom: 1px solid #e5e7eb;
   text-align: left;
   vertical-align: middle;
@@ -707,13 +773,13 @@ button:disabled:focus {
 
 .deck-table th {
   color: #111827;
-  font-size: 0.95rem;
+  font-size: 0.86rem;
   background: #ffffff;
 }
 
 .deck-table th:nth-child(1),
 .deck-table td:nth-child(1) {
-  width: 3.8rem;
+  width: 3.2rem;
   text-align: center;
 }
 
@@ -724,17 +790,15 @@ button:disabled:focus {
 
 .deck-table th:nth-child(3),
 .deck-table td:nth-child(3) {
-  width: 1%;
-  padding-right: 0.9rem;
-  white-space: nowrap;
+  width: 4.3rem;
+  padding-right: 0.45rem;
 }
 
 .deck-table th:nth-child(4),
 .deck-table td:nth-child(4) {
-  width: 8.5rem;
-  max-width: 8.5rem;
+  width: 6.4rem;
+  max-width: 6.4rem;
   padding-right: 0.4rem;
-  white-space: nowrap;
 }
 
 .deck-table td {
@@ -743,8 +807,24 @@ button:disabled:focus {
 
 .deck-sections-with-sideboard .deck-table th:nth-child(4),
 .deck-sections-with-sideboard .deck-table td:nth-child(4) {
-  width: 6.5rem;
-  max-width: 6.5rem;
+  width: 5.9rem;
+  max-width: 5.9rem;
+}
+
+.deck-table-no-mana {
+  table-layout: fixed;
+}
+
+.deck-table-no-mana th:nth-child(2),
+.deck-table-no-mana td:nth-child(2) {
+  width: calc(100% - 8.5rem);
+}
+
+.deck-table-no-mana th:nth-child(3),
+.deck-table-no-mana td:nth-child(3) {
+  width: 5.3rem;
+  max-width: 5.3rem;
+  padding-right: 0.4rem;
 }
 
 .card-name {
@@ -757,10 +837,18 @@ button:disabled:focus {
 
 .card-name > span:first-child {
   min-width: 0;
-  overflow-wrap: normal;
+  overflow-wrap: anywhere;
 }
 
-.card-name .color-squares {
+.card-type {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  flex-wrap: wrap;
+  gap: 0.45rem;
+}
+
+.card-type .color-squares {
   flex: 0 0 auto;
   flex-wrap: nowrap;
 }
@@ -777,19 +865,20 @@ button:disabled:focus {
 
 .mana-cost {
   display: inline-flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   align-items: center;
   gap: 0.14rem;
 }
 
 .mana-symbol {
+  --generic-mana-bg: #d8d2c9;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  flex: 0 0 1.32rem;
-  width: 1.32rem;
-  height: 1.32rem;
-  font-size: 0.96rem;
+  flex: 0 0 1.2rem;
+  width: 1.2rem;
+  height: 1.2rem;
+  font-size: 0.88rem;
   line-height: 1;
   text-align: center;
   vertical-align: -0.18em;
@@ -807,9 +896,9 @@ button:disabled:focus {
 }
 
 .mana-symbol-custom {
-  --mana-left-bg: #c9c3ba;
-  --mana-right-bg: #c9c3ba;
-  --mana-solid-bg: #c9c3ba;
+  --mana-left-bg: var(--generic-mana-bg);
+  --mana-right-bg: var(--generic-mana-bg);
+  --mana-solid-bg: var(--generic-mana-bg);
   position: relative;
   overflow: hidden;
   border-radius: 999px;
@@ -848,7 +937,7 @@ button:disabled:focus {
 
 .mana-solid-colorless,
 .mana-solid-generic {
-  --mana-solid-bg: #c9c3ba;
+  --mana-solid-bg: var(--generic-mana-bg);
 }
 
 .mana-split-left-white {
@@ -873,7 +962,7 @@ button:disabled:focus {
 
 .mana-split-left-colorless,
 .mana-split-left-generic {
-  --mana-left-bg: #c9c3ba;
+  --mana-left-bg: var(--generic-mana-bg);
 }
 
 .mana-split-right-white {
@@ -898,7 +987,60 @@ button:disabled:focus {
 
 .mana-split-right-colorless,
 .mana-split-right-generic {
-  --mana-right-bg: #c9c3ba;
+  --mana-right-bg: var(--generic-mana-bg);
+}
+
+.mana-symbol.ms-cost.ms-0,
+.mana-symbol.ms-cost.ms-1,
+.mana-symbol.ms-cost.ms-2,
+.mana-symbol.ms-cost.ms-3,
+.mana-symbol.ms-cost.ms-4,
+.mana-symbol.ms-cost.ms-5,
+.mana-symbol.ms-cost.ms-6,
+.mana-symbol.ms-cost.ms-7,
+.mana-symbol.ms-cost.ms-8,
+.mana-symbol.ms-cost.ms-9,
+.mana-symbol.ms-cost.ms-10,
+.mana-symbol.ms-cost.ms-11,
+.mana-symbol.ms-cost.ms-12,
+.mana-symbol.ms-cost.ms-13,
+.mana-symbol.ms-cost.ms-14,
+.mana-symbol.ms-cost.ms-15,
+.mana-symbol.ms-cost.ms-16,
+.mana-symbol.ms-cost.ms-17,
+.mana-symbol.ms-cost.ms-18,
+.mana-symbol.ms-cost.ms-19,
+.mana-symbol.ms-cost.ms-20,
+.mana-symbol.ms-cost.ms-x,
+.mana-symbol.ms-cost.ms-c {
+  border-radius: 999px;
+  background-color: var(--generic-mana-bg);
+}
+
+.mana-symbol.ms-cost.ms-0::after,
+.mana-symbol.ms-cost.ms-1::after,
+.mana-symbol.ms-cost.ms-2::after,
+.mana-symbol.ms-cost.ms-3::after,
+.mana-symbol.ms-cost.ms-4::after,
+.mana-symbol.ms-cost.ms-5::after,
+.mana-symbol.ms-cost.ms-6::after,
+.mana-symbol.ms-cost.ms-7::after,
+.mana-symbol.ms-cost.ms-8::after,
+.mana-symbol.ms-cost.ms-9::after,
+.mana-symbol.ms-cost.ms-10::after,
+.mana-symbol.ms-cost.ms-11::after,
+.mana-symbol.ms-cost.ms-12::after,
+.mana-symbol.ms-cost.ms-13::after,
+.mana-symbol.ms-cost.ms-14::after,
+.mana-symbol.ms-cost.ms-15::after,
+.mana-symbol.ms-cost.ms-16::after,
+.mana-symbol.ms-cost.ms-17::after,
+.mana-symbol.ms-cost.ms-18::after,
+.mana-symbol.ms-cost.ms-19::after,
+.mana-symbol.ms-cost.ms-20::after,
+.mana-symbol.ms-cost.ms-x::after,
+.mana-symbol.ms-cost.ms-c::after {
+  background-color: var(--generic-mana-bg);
 }
 
 .mana-symbol-half,
@@ -1073,14 +1215,16 @@ button:disabled:focus {
     grid-template-columns: 1fr;
   }
 
-  .deck-table {
-    display: block;
-    overflow-x: auto;
+  .deck-sections,
+  .mainboard-type-grid,
+  .mainboard-type-column,
+  .deck-list-item,
+  .deck-list-link-with-thumbnail {
+    grid-template-columns: 1fr;
   }
 
-  .deck-sections,
-  .deck-list-item {
-    grid-template-columns: 1fr;
+  .deck-list-thumbnail {
+    justify-self: start;
   }
 
   .deck-card-preview-panel {

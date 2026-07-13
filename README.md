@@ -1,10 +1,10 @@
 # Future Sight
 
 ## Overview
-Future Sight is a deck-building and tournament tracking tool for competitive Magic: The Gathering players. It helps users create decks, verify format legality, track deck versions over time, and log matchup results and notes across tournaments.
+Future Sight is a deck-building and tournament tracking tool for competitive Magic: The Gathering players. It helps users import and manage decks today, with format legality checks, persistent version history, matchup logging, and tournament notes planned as the project grows.
 
 ## Current Status
-This project has initial barebones scaffolding for the intended architecture.
+The project currently has a working full-stack deck import and viewing flow. Users can import decklists, save deck metadata, browse saved decks, inspect card details, edit decklists, adjust card quantities, delete decks, and resolve/cache card data from Scryfall. Legality checking, durable version history comparison, matchup logging, tournament tracking, and deck statistics are still in progress.
 
 ## Project Documents
 - [Project Vision](docs/project/project-vision.md)
@@ -14,8 +14,8 @@ This project has initial barebones scaffolding for the intended architecture.
 ## Setup Notes
 The project is structured as a small full-stack monorepo:
 
-- `apps/web`: Astro frontend for deck views, statistics displays, and matchup logging screens.
-- `apps/api`: FastAPI backend for deck/version logic, validation, statistics, and Scryfall coordination.
+- `apps/web`: Astro frontend for deck import, saved deck browsing, deck detail views, card inspection, and deck editing.
+- `apps/api`: FastAPI backend for deck import/update/delete logic, Scryfall lookup, and cached card data. Placeholder modules exist for legality checks, statistics, and matchup tracking.
 - `mongo`: MongoDB service managed through Docker Compose.
 
 ### Makefile Commands
