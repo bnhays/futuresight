@@ -13,9 +13,23 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       <div class="deck-actions">
         <a class="button-link action-button muted" href="/">Back</a>
         <button id="edit-deck" class="action-button success-button hollow-button" type="button">Edit</button>
+        <button id="versions-deck" class="action-button version-button hollow-button" type="button">Versions</button>
         <button id="delete-deck" class="action-button danger-button hollow-button" type="button">Delete</button>
       </div>
     </div>
+
+    <section id="deck-version-panel" class="deck-version-panel" hidden>
+      <label>
+        <span>Version</span>
+        <select id="deck-version-select"></select>
+      </label>
+      <div class="deck-version-actions">
+        <p id="deck-version-note"></p>
+        <button id="restore-version" class="action-button primary-button hollow-button" type="button" hidden>
+          Restore as Latest
+        </button>
+      </div>
+    </section>
 
     <section id="deck-edit-panel" class="deck-edit-panel" hidden>
       <form id="deck-edit-form" class="import-form deck-edit-form">
@@ -100,12 +114,17 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     const deckTitle = document.querySelector("#deck-title");
     const deckDescription = document.querySelector("#deck-description");
     const deckMeta = document.querySelector("#deck-meta");
+    const deckVersionPanel = document.querySelector("#deck-version-panel");
+    const deckVersionSelect = document.querySelector("#deck-version-select");
+    const deckVersionNote = document.querySelector("#deck-version-note");
+    const restoreVersionButton = document.querySelector("#restore-version");
     const deckPanel = document.querySelector("#deck-panel");
     const deckSections = document.querySelector("#deck-sections");
     const inspectPanel = document.querySelector("#inspect-panel");
     const inspectContent = document.querySelector("#inspect-content");
     const closeInspect = document.querySelector("#close-inspect");
     const editDeckButton = document.querySelector("#edit-deck");
+    const versionsDeckButton = document.querySelector("#versions-deck");
     const deleteDeckButton = document.querySelector("#delete-deck");
     const deckEditPanel = document.querySelector("#deck-edit-panel");
     const deckEditForm = document.querySelector("#deck-edit-form");
@@ -123,6 +142,24 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     let currentDeck = null;
     let initialDeck = null;
     let inspectedCardKey = null;
+    let versionPanelOpen = false;
+
+    function formatDateTime(value) {
+      if (!value) return "";
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return "";
+      return date.toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      });
+    }
+
+    function versionLabel(version) {
+      return `v${version.version_number}`;
+    }
 
     function groupBySection(cards) {
       return cards.reduce((groups, card) => {
@@ -191,7 +228,36 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       deckTitle.append(titleText);
       deckDescription.textContent = deck.description || "";
       deckDescription.hidden = !deck.description;
-      deckMeta.textContent = `Format: ${formatFormat(deck.format || "modern")}`;
+      const versionText = deck.version_number ? ` | ${versionLabel(deck)}` : "";
+      deckMeta.textContent = `Format: ${formatFormat(deck.format || "modern")}${versionText}`;
+    }
+
+    function renderVersionControls(deck) {
+      const versions = deck.versions || [];
+      deckVersionPanel.hidden = !versionPanelOpen || !versions.length;
+      versionsDeckButton.disabled = !versions.length;
+      deckVersionSelect.innerHTML = "";
+
+      versions.forEach((version) => {
+        const option = document.createElement("option");
+        option.value = version.id;
+        option.textContent = `${versionLabel(version)}${version.is_active ? " (Latest)" : ""}`;
+        option.selected = version.id === deck.selected_version_id;
+        deckVersionSelect.append(option);
+      });
+
+      const createdAt = formatDateTime(deck.version_created_at);
+      const noteParts = [];
+      if (createdAt) noteParts.push(createdAt);
+      if (deck.change_note) noteParts.push(deck.change_note);
+      deckVersionNote.textContent = noteParts.join(" | ");
+      deckVersionNote.hidden = !noteParts.length;
+      restoreVersionButton.hidden = !deck.active_version_id || deck.selected_version_id === deck.active_version_id;
+    }
+
+    function toggleVersionPanel() {
+      versionPanelOpen = !versionPanelOpen;
+      if (currentDeck) renderVersionControls(currentDeck);
     }
 
     function deckToText(cards) {
@@ -217,6 +283,26 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       return JSON.parse(JSON.stringify(deck));
     }
 
+    function normalizeText(value) {
+      return String(value || "").trim();
+    }
+
+    function currentDecklistText() {
+      if (!currentDeck) return "";
+      return currentDeck.raw_decklist || deckToText(currentDeck.cards || []);
+    }
+
+    function hasEditChanges(decklist) {
+      if (!currentDeck) return false;
+      return (
+        normalizeText(editDeckName.value) !== normalizeText(currentDeck.name) ||
+        normalizeText(editDeckFormat.value) !== normalizeText(currentDeck.format || "modern") ||
+        normalizeText(editDeckDescription.value) !== normalizeText(currentDeck.description) ||
+        normalizeText(editThumbnailCardName.value) !== normalizeText(currentDeck.thumbnail_card_name) ||
+        normalizeText(decklist) !== normalizeText(currentDecklistText())
+      );
+    }
+
     function hasUnsavedQuantityChanges() {
       if (!currentDeck || !initialDeck) return false;
       return deckToText(currentDeck.cards || []) !== deckToText(initialDeck.cards || []);
@@ -234,7 +320,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       editThumbnailCardName.value = currentDeck.thumbnail_card_name || "";
       editDecklist.value = hasUnsavedQuantityChanges()
         ? deckToText(currentDeck.cards || [])
-        : currentDeck.raw_decklist || deckToText(currentDeck.cards || []);
+        : currentDecklistText();
       editStatus.textContent = "";
       deckEditPanel.hidden = false;
       closeInspectPanel();
@@ -810,7 +896,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       inspectPanel.hidden = false;
     }
 
-    async function loadDeck() {
+    async function loadDeck(versionId = new URLSearchParams(window.location.search).get("version_id")) {
       if (!deckId) {
         deckTitle.textContent = "Deck Detail";
         deckMeta.textContent = "No deck id was provided.";
@@ -819,7 +905,8 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       }
 
       try {
-        const response = await fetch(`${API_URL}/decks/${deckId}`);
+        const query = versionId ? `?version_id=${encodeURIComponent(versionId)}` : "";
+        const response = await fetch(`${API_URL}/decks/${deckId}${query}`);
         const deck = await response.json();
         if (!response.ok) {
           throw new Error(deck.detail || "Could not load deck.");
@@ -828,19 +915,23 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         currentDeck = deck;
         initialDeck = cloneDeck(deck);
         renderTitle(deck);
+        renderVersionControls(deck);
         renderWarnings(deck.warnings || []);
         renderDeck(deck.cards || []);
         updateUnsavedQuantityBar();
       } catch (error) {
         deckTitle.textContent = "Deck Detail";
         deckMeta.textContent = error instanceof Error ? error.message : "Could not load deck.";
+        deckVersionPanel.hidden = true;
         deckPanel.hidden = true;
       }
     }
 
     async function saveQuantityChanges() {
       if (!currentDeck || !deckId) return;
+      if (!hasUnsavedQuantityChanges()) return;
 
+      const changeNote = window.prompt("Change note", "Updated card quantities.") || "";
       saveQuantityChangesButton.disabled = true;
       discardQuantityChangesButton.disabled = true;
 
@@ -853,6 +944,8 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
             format: currentDeck.format || "modern",
             description: currentDeck.description || "",
             thumbnail_card_name: currentDeck.thumbnail_card_name || "",
+            change_note: changeNote.trim(),
+            base_version_id: currentDeck.selected_version_id || currentDeck.active_version_id || "",
             decklist: deckToText(currentDeck.cards || []),
           }),
         });
@@ -862,7 +955,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
           throw new Error(data.detail || "Could not save deck.");
         }
 
-        window.location.reload();
+        window.location.href = `/decks/view?id=${encodeURIComponent(deckId)}&version_id=${encodeURIComponent(data.active_version_id)}`;
       } catch (error) {
         deckMeta.textContent = error instanceof Error ? error.message : "Could not save deck.";
         saveQuantityChangesButton.disabled = false;
@@ -889,6 +982,12 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         return;
       }
 
+      if (!hasEditChanges(decklist)) {
+        editStatus.textContent = "No changes to save.";
+        return;
+      }
+
+      const changeNote = window.prompt("Change note", "") || "";
       saveDeckButton.disabled = true;
       editStatus.textContent = "Saving...";
 
@@ -901,6 +1000,8 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
             format: editDeckFormat.value,
             description: editDeckDescription.value.trim(),
             thumbnail_card_name: editThumbnailCardName.value.trim(),
+            change_note: changeNote.trim(),
+            base_version_id: currentDeck?.selected_version_id || currentDeck?.active_version_id || "",
             decklist,
           }),
         });
@@ -910,11 +1011,59 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
           throw new Error(data.detail || "Could not save deck.");
         }
 
-        editStatus.textContent = "Saved. Reloading...";
-        window.location.reload();
+        editStatus.textContent = "Saved. Loading new version...";
+        window.location.href = `/decks/view?id=${encodeURIComponent(deckId)}&version_id=${encodeURIComponent(data.active_version_id)}`;
       } catch (error) {
         editStatus.textContent = error instanceof Error ? error.message : "Could not save deck.";
         saveDeckButton.disabled = false;
+      }
+    }
+
+    async function changeViewedVersion() {
+      const versionId = deckVersionSelect.value;
+      if (!versionId) return;
+
+      const url = new URL(window.location.href);
+      url.searchParams.set("id", deckId);
+      url.searchParams.set("version_id", versionId);
+      window.history.replaceState({}, "", url);
+
+      closeEditPanel();
+      closeInspectPanel();
+      deckMeta.textContent = "Loading deck...";
+      await loadDeck(versionId);
+    }
+
+    async function restoreViewedVersion() {
+      if (!currentDeck?.selected_version_id || !deckId) return;
+      const confirmed = window.confirm(`Restore ${versionLabel(currentDeck)} as the latest version?`);
+      if (!confirmed) return;
+
+      const changeNote = window.prompt(
+        "Change note",
+        `Restored version ${currentDeck.version_number || ""}.`.trim(),
+      ) || "";
+
+      restoreVersionButton.disabled = true;
+
+      try {
+        const response = await fetch(
+          `${API_URL}/decks/${deckId}/versions/${currentDeck.selected_version_id}/restore`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ change_note: changeNote.trim() }),
+          },
+        );
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.detail || "Could not restore version.");
+        }
+
+        window.location.href = `/decks/view?id=${encodeURIComponent(deckId)}`;
+      } catch (error) {
+        deckMeta.textContent = error instanceof Error ? error.message : "Could not restore version.";
+        restoreVersionButton.disabled = false;
       }
     }
 
@@ -955,6 +1104,9 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     });
 
     editDeckButton.addEventListener("click", toggleEditPanel);
+    versionsDeckButton.addEventListener("click", toggleVersionPanel);
+    deckVersionSelect.addEventListener("change", changeViewedVersion);
+    restoreVersionButton.addEventListener("click", restoreViewedVersion);
     deckEditForm.addEventListener("submit", saveDeck);
     cancelEditButton.addEventListener("click", closeEditPanel);
     deleteDeckButton.addEventListener("click", deleteDeck);

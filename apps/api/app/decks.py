@@ -7,7 +7,14 @@ from pydantic import BaseModel, Field
 
 from app.deck_parser import parse_decklist
 from app.db import get_database
-from app.models import DeckDetail, DeckImportMetrics, DeckSummary, ImportedCardData, ParsedDeckCard
+from app.models import (
+    DeckDetail,
+    DeckImportMetrics,
+    DeckSummary,
+    DeckVersionSummary,
+    ImportedCardData,
+    ParsedDeckCard,
+)
 from app.scryfall import find_card_by_name, find_cards_by_names
 
 router = APIRouter()
@@ -19,11 +26,22 @@ class DeckImportRequest(BaseModel):
     format: str = "modern"
     description: str | None = None
     thumbnail_card_name: str | None = None
+    version_name: str | None = None
+    change_note: str | None = None
+    base_version_id: str | None = None
+
+
+class DeckVersionRestoreRequest(BaseModel):
+    version_name: str | None = None
+    change_note: str | None = None
 
 
 class DeckImportResponse(BaseModel):
     id: str
     active_version_id: str
+    version_number: int
+    version_name: str | None = None
+    change_note: str | None = None
     name: str | None = None
     format: str
     description: str | None = None
@@ -77,6 +95,16 @@ def normalize_thumbnail_card_name(value: str | None) -> str | None:
     return thumbnail_card_name or None
 
 
+def normalize_version_name(value: str | None) -> str | None:
+    version_name = (value or "").strip()
+    return version_name[:80] or None
+
+
+def normalize_change_note(value: str | None) -> str | None:
+    change_note = (value or "").strip()
+    return change_note[:240] or None
+
+
 def serialize_deck_summary(deck: dict, cards: list[dict] | None = None) -> DeckSummary:
     active_cards = cards or []
     thumbnail_card_name = normalize_thumbnail_card_name(deck.get("thumbnail_card_name"))
@@ -89,7 +117,151 @@ def serialize_deck_summary(deck: dict, cards: list[dict] | None = None) -> DeckS
         thumbnail_card=find_thumbnail_card(active_cards, thumbnail_card_name),
         color_identity=get_deck_color_identity(active_cards),
         active_version_id=str(deck["active_version_id"]) if deck.get("active_version_id") else None,
+        active_version_number=deck.get("active_version_number"),
         updated_at=serialize_datetime(deck.get("updated_at")),
+    )
+
+
+def serialize_deck_version_summary(version: dict, active_version_id: ObjectId | None = None) -> DeckVersionSummary:
+    return DeckVersionSummary(
+        id=str(version["_id"]),
+        version_number=version.get("version_number") or 1,
+        version_name=version.get("version_name"),
+        change_note=version.get("change_note"),
+        created_at=serialize_datetime(version.get("created_at")),
+        is_active=version.get("_id") == active_version_id,
+    )
+
+
+def get_card_snapshot(cards: list[ParsedDeckCard] | list[dict]) -> list[dict[str, int | str]]:
+    snapshot = []
+    for card in cards:
+        if isinstance(card, ParsedDeckCard):
+            snapshot.append(
+                {
+                    "quantity": card.quantity,
+                    "name": normalize_name_key(card.name),
+                    "section": card.section or "mainboard",
+                }
+            )
+        else:
+            snapshot.append(
+                {
+                    "quantity": card.get("quantity"),
+                    "name": normalize_name_key(card.get("name") or ""),
+                    "section": card.get("section") or "mainboard",
+                }
+            )
+
+    return snapshot
+
+
+def version_matches_submission(
+    version: dict,
+    deck_name: str,
+    deck_format: str,
+    deck_description: str | None,
+    thumbnail_card_name: str | None,
+    cards: list[ParsedDeckCard],
+) -> bool:
+    return (
+        (version.get("name") or "Untitled Deck") == deck_name
+        and (version.get("format") or "modern") == deck_format
+        and version.get("description") == deck_description
+        and normalize_thumbnail_card_name(version.get("thumbnail_card_name")) == thumbnail_card_name
+        and get_card_snapshot(version.get("cards", [])) == get_card_snapshot(cards)
+    )
+
+
+async def list_deck_version_summaries(
+    db,
+    deck_id: ObjectId,
+    active_version_id: ObjectId | None = None,
+) -> list[DeckVersionSummary]:
+    cursor = db.deck_versions.find({"deck_id": deck_id}).sort("version_number", -1)
+    return [
+        serialize_deck_version_summary(version, active_version_id)
+        async for version in cursor
+    ]
+
+
+async def get_next_version_number(db, deck_id: ObjectId) -> int:
+    latest = await db.deck_versions.find_one(
+        {"deck_id": deck_id, "version_number": {"$exists": True}},
+        sort=[("version_number", -1)],
+    )
+    version_count = await db.deck_versions.count_documents({"deck_id": deck_id})
+    latest_number = latest.get("version_number") if latest else 0
+    return max(latest_number or 0, version_count) + 1
+
+
+async def get_selected_version(
+    db,
+    deck: dict,
+    version_id: str | None = None,
+    version_number: int | None = None,
+) -> dict:
+    deck_object_id = deck["_id"]
+    if version_id:
+        version_object_id = parse_object_id(version_id)
+        version = await db.deck_versions.find_one(
+            {"_id": version_object_id, "deck_id": deck_object_id}
+        )
+    elif version_number:
+        version = await db.deck_versions.find_one(
+            {"deck_id": deck_object_id, "version_number": version_number}
+        )
+    elif deck.get("active_version_id"):
+        version = await db.deck_versions.find_one({"_id": deck["active_version_id"]})
+    else:
+        version = None
+
+    if not version:
+        raise HTTPException(status_code=404, detail="Deck version not found.")
+
+    return version
+
+
+async def get_version_for_noop_check(db, deck: dict, base_version_id: str | None) -> dict | None:
+    if base_version_id:
+        try:
+            return await get_selected_version(db, deck, version_id=base_version_id)
+        except HTTPException:
+            return None
+
+    if deck.get("active_version_id"):
+        return await db.deck_versions.find_one({"_id": deck["active_version_id"]})
+
+    return None
+
+
+async def serialize_deck_detail(db, deck: dict, version: dict) -> DeckDetail:
+    cards = version.get("cards", [])
+    active_version_id = deck.get("active_version_id")
+    versions = await list_deck_version_summaries(db, deck["_id"], active_version_id)
+    thumbnail_card_name = normalize_thumbnail_card_name(version.get("thumbnail_card_name"))
+    return DeckDetail(
+        id=str(deck["_id"]),
+        name=version.get("name") or deck.get("name") or "Untitled Deck",
+        format=version.get("format") or deck.get("format") or "unknown",
+        description=version.get("description"),
+        thumbnail_card_name=thumbnail_card_name,
+        thumbnail_card=find_thumbnail_card(cards, thumbnail_card_name),
+        color_identity=get_deck_color_identity(cards),
+        active_version_id=str(active_version_id) if active_version_id else None,
+        active_version_number=deck.get("active_version_number"),
+        updated_at=serialize_datetime(deck.get("updated_at")),
+        selected_version_id=str(version["_id"]),
+        version_number=version.get("version_number") or 1,
+        version_name=version.get("version_name"),
+        change_note=version.get("change_note"),
+        version_created_at=serialize_datetime(version.get("created_at")),
+        versions=versions,
+        cards=[ParsedDeckCard(**card) for card in cards],
+        warnings=version.get("warnings", []),
+        import_metrics=DeckImportMetrics(**version.get("import_metrics", {})),
+        raw_decklist=version.get("raw_decklist"),
+        created_at=serialize_datetime(deck.get("created_at")),
     )
 
 
@@ -252,6 +424,8 @@ async def import_deck(payload: DeckImportRequest) -> DeckImportResponse:
     deck_format = payload.format.strip().lower() or "modern"
     deck_description = normalize_description(payload.description)
     thumbnail_card_name = normalize_thumbnail_card_name(payload.thumbnail_card_name)
+    version_name = normalize_version_name(payload.version_name)
+    change_note = normalize_change_note(payload.change_note)
 
     deck_result = await db.decks.insert_one(
         {
@@ -267,6 +441,9 @@ async def import_deck(payload: DeckImportRequest) -> DeckImportResponse:
     version_result = await db.deck_versions.insert_one(
         {
             "deck_id": deck_result.inserted_id,
+            "version_number": 1,
+            "version_name": version_name,
+            "change_note": change_note,
             "name": deck_name,
             "format": deck_format,
             "description": deck_description,
@@ -280,12 +457,15 @@ async def import_deck(payload: DeckImportRequest) -> DeckImportResponse:
     )
     await db.decks.update_one(
         {"_id": deck_result.inserted_id},
-        {"$set": {"active_version_id": version_result.inserted_id}},
+        {"$set": {"active_version_id": version_result.inserted_id, "active_version_number": 1}},
     )
 
     return DeckImportResponse(
         id=str(deck_result.inserted_id),
         active_version_id=str(version_result.inserted_id),
+        version_number=1,
+        version_name=version_name,
+        change_note=change_note,
         name=deck_name,
         format=deck_format,
         description=deck_description,
@@ -316,31 +496,105 @@ async def list_decks(limit: int | None = Query(default=None, ge=1, le=100)) -> l
     return summaries
 
 
-@router.get("/{deck_id}", response_model=DeckDetail)
-async def get_deck(deck_id: str) -> DeckDetail:
+@router.get("/{deck_id}/versions", response_model=list[DeckVersionSummary])
+async def list_deck_versions(deck_id: str) -> list[DeckVersionSummary]:
     db = get_database()
     deck_object_id = parse_object_id(deck_id)
     deck = await db.decks.find_one({"_id": deck_object_id})
     if not deck:
         raise HTTPException(status_code=404, detail="Deck not found.")
 
-    version = None
-    if deck.get("active_version_id"):
-        version = await db.deck_versions.find_one({"_id": deck["active_version_id"]})
+    return await list_deck_version_summaries(db, deck_object_id, deck.get("active_version_id"))
 
-    if not version:
-        raise HTTPException(status_code=404, detail="Deck version not found.")
 
-    cards = version.get("cards", [])
-    summary = serialize_deck_summary(deck, cards)
-    return DeckDetail(
-        **summary.model_dump(),
-        cards=[ParsedDeckCard(**card) for card in cards],
-        warnings=version.get("warnings", []),
-        import_metrics=DeckImportMetrics(**version.get("import_metrics", {})),
-        raw_decklist=version.get("raw_decklist"),
-        created_at=serialize_datetime(deck.get("created_at")),
+@router.post("/{deck_id}/versions/{version_id}/restore", response_model=DeckUpdateResponse)
+async def restore_deck_version(
+    deck_id: str,
+    version_id: str,
+    payload: DeckVersionRestoreRequest | None = None,
+) -> DeckUpdateResponse:
+    db = get_database()
+    deck_object_id = parse_object_id(deck_id)
+    deck = await db.decks.find_one({"_id": deck_object_id})
+    if not deck:
+        raise HTTPException(status_code=404, detail="Deck not found.")
+
+    source_version = await get_selected_version(db, deck, version_id=version_id)
+    now = utc_now()
+    version_number = await get_next_version_number(db, deck_object_id)
+    version_name = (
+        normalize_version_name(payload.version_name if payload else None)
+        or source_version.get("version_name")
     )
+    change_note = (
+        normalize_change_note(payload.change_note if payload else None)
+        or f"Restored version {source_version.get('version_number') or 1}."
+    )
+
+    version_document = {
+        "deck_id": deck_object_id,
+        "version_number": version_number,
+        "version_name": version_name,
+        "change_note": change_note,
+        "name": source_version.get("name") or deck.get("name") or "Untitled Deck",
+        "format": source_version.get("format") or deck.get("format") or "modern",
+        "description": source_version.get("description"),
+        "thumbnail_card_name": source_version.get("thumbnail_card_name"),
+        "cards": source_version.get("cards", []),
+        "warnings": source_version.get("warnings", []),
+        "import_metrics": source_version.get("import_metrics", {}),
+        "raw_decklist": source_version.get("raw_decklist"),
+        "created_at": now,
+    }
+
+    version_insert = await db.deck_versions.insert_one(version_document)
+    active_version_id = version_insert.inserted_id
+
+    await db.decks.update_one(
+        {"_id": deck_object_id},
+        {
+            "$set": {
+                "name": version_document["name"],
+                "format": version_document["format"],
+                "description": version_document["description"],
+                "thumbnail_card_name": version_document["thumbnail_card_name"],
+                "active_version_id": active_version_id,
+                "active_version_number": version_number,
+                "updated_at": now,
+            }
+        },
+    )
+
+    return DeckUpdateResponse(
+        id=str(deck_object_id),
+        active_version_id=str(active_version_id),
+        version_number=version_number,
+        version_name=version_name,
+        change_note=change_note,
+        name=version_document["name"],
+        format=version_document["format"],
+        description=version_document["description"],
+        thumbnail_card_name=version_document["thumbnail_card_name"],
+        cards=[ParsedDeckCard(**card) for card in version_document["cards"]],
+        warnings=version_document["warnings"],
+        import_metrics=DeckImportMetrics(**version_document["import_metrics"]),
+    )
+
+
+@router.get("/{deck_id}", response_model=DeckDetail)
+async def get_deck(
+    deck_id: str,
+    version_id: str | None = Query(default=None),
+    version: int | None = Query(default=None, ge=1),
+) -> DeckDetail:
+    db = get_database()
+    deck_object_id = parse_object_id(deck_id)
+    deck = await db.decks.find_one({"_id": deck_object_id})
+    if not deck:
+        raise HTTPException(status_code=404, detail="Deck not found.")
+
+    selected_version = await get_selected_version(db, deck, version_id=version_id, version_number=version)
+    return await serialize_deck_detail(db, deck, selected_version)
 
 
 @router.put("/{deck_id}", response_model=DeckUpdateResponse)
@@ -358,8 +612,39 @@ async def update_deck(deck_id: str, payload: DeckImportRequest) -> DeckUpdateRes
     deck_description = normalize_description(payload.description)
     thumbnail_card_name = normalize_thumbnail_card_name(payload.thumbnail_card_name)
 
+    comparison_version = await get_version_for_noop_check(db, deck, payload.base_version_id)
+    if comparison_version and version_matches_submission(
+        comparison_version,
+        deck_name,
+        deck_format,
+        deck_description,
+        thumbnail_card_name,
+        cards,
+    ):
+        return DeckUpdateResponse(
+            id=str(deck_object_id),
+            active_version_id=str(comparison_version["_id"]),
+            version_number=comparison_version.get("version_number") or 1,
+            version_name=comparison_version.get("version_name"),
+            change_note=comparison_version.get("change_note"),
+            name=comparison_version.get("name") or deck_name,
+            format=comparison_version.get("format") or deck_format,
+            description=comparison_version.get("description"),
+            thumbnail_card_name=comparison_version.get("thumbnail_card_name"),
+            cards=[ParsedDeckCard(**card) for card in comparison_version.get("cards", [])],
+            warnings=comparison_version.get("warnings", []),
+            import_metrics=DeckImportMetrics(**comparison_version.get("import_metrics", {})),
+        )
+
+    version_number = await get_next_version_number(db, deck_object_id)
+    version_name = normalize_version_name(payload.version_name)
+    change_note = normalize_change_note(payload.change_note)
+
     version_document = {
         "deck_id": deck_object_id,
+        "version_number": version_number,
+        "version_name": version_name,
+        "change_note": change_note,
         "name": deck_name,
         "format": deck_format,
         "description": deck_description,
@@ -371,7 +656,6 @@ async def update_deck(deck_id: str, payload: DeckImportRequest) -> DeckUpdateRes
         "created_at": now,
     }
 
-    await db.deck_versions.delete_many({"deck_id": deck_object_id})
     version_insert = await db.deck_versions.insert_one(version_document)
     active_version_id = version_insert.inserted_id
 
@@ -384,6 +668,7 @@ async def update_deck(deck_id: str, payload: DeckImportRequest) -> DeckUpdateRes
                 "description": deck_description,
                 "thumbnail_card_name": thumbnail_card_name,
                 "active_version_id": active_version_id,
+                "active_version_number": version_number,
                 "updated_at": now,
             }
         },
@@ -392,6 +677,9 @@ async def update_deck(deck_id: str, payload: DeckImportRequest) -> DeckUpdateRes
     return DeckUpdateResponse(
         id=str(deck_object_id),
         active_version_id=str(active_version_id),
+        version_number=version_number,
+        version_name=version_name,
+        change_note=change_note,
         name=deck_name,
         format=deck_format,
         description=deck_description,

@@ -31,15 +31,26 @@ class DeckSummary(BaseModel):
     thumbnail_card: ParsedDeckCard | None = None
     color_identity: list[str] = Field(default_factory=list)
     active_version_id: str | None = None
+    active_version_number: int | None = None
     updated_at: str | None = None
-    
+
+
+class DeckVersionSummary(BaseModel):
+    id: str
+    version_number: int
+    version_name: str | None = None
+    change_note: str | None = None
+    created_at: str | None = None
+    is_active: bool = False
+
+
 class Matchup(BaseModel):
     opponent: str | None = None
     opponent_deck: str | DeckSummary
     played_deck: DeckSummary
     sideboards: list[list[ParsedDeckCard]] = Field(default_factory=list)
 
-    
+
 class Tournament(BaseModel):
     pass
 
@@ -55,6 +66,12 @@ class DeckImportMetrics(BaseModel):
 
 
 class DeckDetail(DeckSummary):
+    selected_version_id: str | None = None
+    version_number: int | None = None
+    version_name: str | None = None
+    change_note: str | None = None
+    version_created_at: str | None = None
+    versions: list[DeckVersionSummary] = Field(default_factory=list)
     cards: list[ParsedDeckCard] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
     import_metrics: DeckImportMetrics | None = None

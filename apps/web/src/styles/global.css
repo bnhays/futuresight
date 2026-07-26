@@ -222,6 +222,7 @@ main {
 
 .import-form,
 .deck-panel,
+.deck-version-panel,
 .inspect-panel,
 .message-panel,
 .recent-decks-panel,
@@ -232,6 +233,42 @@ main {
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--color-panel-bg);
+}
+
+.deck-version-panel {
+  grid-template-columns: minmax(12rem, 18rem) minmax(0, 1fr);
+  align-items: end;
+}
+
+.deck-version-panel label {
+  display: grid;
+  gap: 0.4rem;
+  font-weight: 700;
+}
+
+.deck-version-panel select {
+  width: 100%;
+  min-height: 2.5rem;
+  border: 1px solid var(--color-input-border);
+  border-radius: 6px;
+  padding: 0 0.7rem;
+  color: var(--color-heading);
+  background: var(--color-subtle-bg);
+  font: inherit;
+  font-weight: 400;
+}
+
+.deck-version-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.deck-version-actions p {
+  margin: 0;
+  color: var(--color-muted);
 }
 
 .import-layout {
@@ -413,6 +450,18 @@ button:focus {
   background: var(--color-danger-fill);
 }
 
+.version-button {
+  border-color: #7c3aed;
+  color: #6d28d9;
+  background: transparent;
+}
+
+.version-button:hover,
+.version-button:focus {
+  color: #ffffff;
+  background: #7c3aed;
+}
+
 .hollow-button {
   background: transparent;
 }
@@ -427,6 +476,11 @@ button:focus {
   color: var(--color-danger);
 }
 
+.version-button.hollow-button {
+  border-color: #7c3aed;
+  color: #6d28d9;
+}
+
 .success-button.hollow-button:hover,
 .success-button.hollow-button:focus {
   color: #ffffff;
@@ -437,6 +491,12 @@ button:focus {
 .danger-button.hollow-button:focus {
   color: #ffffff;
   background: var(--color-danger-fill);
+}
+
+.version-button.hollow-button:hover,
+.version-button.hollow-button:focus {
+  color: #ffffff;
+  background: #7c3aed;
 }
 
 button:disabled {
@@ -1386,6 +1446,10 @@ button:disabled:focus {
   }
 
   .import-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .deck-version-panel {
     grid-template-columns: 1fr;
   }
 

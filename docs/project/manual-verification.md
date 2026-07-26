@@ -8,6 +8,10 @@ Manual verification was performed against the Docker-based application build.
 - Imported several decklists with varying card types and structures.
 - Reviewed imported deck detail pages.
 - Edited deck details, including deck metadata and decklist content.
+- Saved deck edits and entered prompted change notes.
+- Opened the Versions panel and selected older deck versions from the deck detail view.
+- Tried saving an unchanged edit form.
+- Restored an older version and confirmed it appeared as the newest version.
 - Used quick card-quantity update controls from the deck detail view.
 - Deleted saved decks.
 - Checked various potential error states, including missing or invalid input and unavailable deck data.
@@ -18,6 +22,10 @@ Manual verification was performed against the Docker-based application build.
 - The deck import form should accept valid decklists and create saved decks.
 - Imported decks should show card names, quantities, sections, card details, and available Scryfall data.
 - Deck metadata and decklist edits should save and appear after returning to the deck detail view.
+- Each changed deck edit should append a new automatically numbered version while preserving previous decklists.
+- Saving an unchanged edit form should not create a new version.
+- The deck detail Versions panel should load historical card lists and metadata snapshots.
+- Restoring an older version should duplicate it as a new latest version.
 - Quick quantity updates should mark the deck as changed and allow the updated decklist to be saved.
 - Deleted decks should be removed from the saved deck list and should no longer open in the detail view.
 - Error states should provide a visible message or safe empty state instead of breaking the page.
@@ -40,4 +48,4 @@ Manual verification was performed against the Docker-based application build.
 
 The prototype satisfies the core project goal for this update: users can build, run, import, inspect, edit, update, and delete decks through the full stack. The remaining issues are visual rendering and layout polish rather than blockers for the primary deck-management workflow.
 
-Future work should improve edge-case mana rendering, tighten dense row layout behavior, and continue the planned implementation of deferred features such as legality checks, statistics, matchup logging, and durable version history.
+Future work should improve edge-case mana rendering, tighten dense row layout behavior, and continue the planned implementation of deferred features such as legality checks, statistics, matchup logging, and version comparison.

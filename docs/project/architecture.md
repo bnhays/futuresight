@@ -1,7 +1,7 @@
 # Architecture
 
 ## Overview
-Future Sight is implemented as a small full-stack monorepo with an Astro client, a FastAPI server, and MongoDB persistence. The current architecture supports deck import, deck browsing, deck detail inspection, deck editing, card quantity updates, deck deletion, Scryfall card lookup, and cached card data.
+Future Sight is implemented as a small full-stack monorepo with an Astro client, a FastAPI server, and MongoDB persistence. The current architecture supports deck import, deck browsing, deck detail inspection, deck editing, linear deck version history, card quantity updates, deck deletion, Scryfall card lookup, and cached card data.
 
 The implementation is prototype-focused. Some planned product areas, including full legality checks, matchup tracking, tournament history, and completed deck statistics, are represented by placeholder modules or empty routes but are not complete user-facing features.
 
@@ -10,7 +10,7 @@ The client lives in `apps/web` and is built with Astro. The pages are rendered a
 
 - `/`: deck import page with deck metadata fields, decklist input, recent deck links, and random card art from saved decks.
 - `/decks`: saved deck list with color identity, optional thumbnail card, description, updated time, and delete controls.
-- `/decks/view?id={deck_id}`: deck detail page with grouped card tables, card inspection panel, edit form, quick quantity controls, save/discard controls, and delete action.
+- `/decks/view?id={deck_id}`: deck detail page with grouped card tables, Versions button, version selector, restore action, card inspection panel, edit form, quick quantity controls, save/discard controls, and delete action.
 
 The client reads `PUBLIC_API_URL` to determine the API base URL and defaults to `http://localhost:8000`.
 
@@ -39,8 +39,10 @@ Current API behavior is centered on deck management.
 
 - `POST /decks/import`: parses a submitted decklist, resolves card data, creates a deck document, creates an active deck version, and returns the imported deck.
 - `GET /decks`: returns deck summaries sorted by most recently updated, with optional `limit`.
-- `GET /decks/{deck_id}`: returns the active deck version with card data, warnings, import metrics, and raw decklist text.
-- `PUT /decks/{deck_id}`: reparses and resolves the submitted decklist, updates deck metadata, replaces the active deck version, and returns the updated deck.
+- `GET /decks/{deck_id}`: returns the active deck version with card data, version history summaries, warnings, import metrics, and raw decklist text. Optional `version_id` or `version` query parameters select an older version.
+- `GET /decks/{deck_id}/versions`: returns lightweight version history summaries for the deck.
+- `POST /decks/{deck_id}/versions/{version_id}/restore`: duplicates the selected historical version as a new latest version.
+- `PUT /decks/{deck_id}`: reparses and resolves the submitted decklist, updates deck metadata, appends a new active deck version, and returns the updated deck.
 - `DELETE /decks/{deck_id}`: deletes the deck and its associated deck version records.
 - `GET /cards/`: placeholder route that currently returns an empty list.
 - `GET /matchups/`: placeholder route that currently returns an empty list.
@@ -50,13 +52,13 @@ MongoDB stores prototype data in the database configured by `MONGODB_DB`, which 
 
 Current collections:
 
-- `decks`: stores deck metadata, active version id, created timestamp, and updated timestamp.
-- `deck_versions`: stores the parsed cards, warnings, import metrics, raw decklist, and metadata snapshot for the deck's active version.
+- `decks`: stores deck metadata, active version id, active version number, created timestamp, and updated timestamp.
+- `deck_versions`: stores each parsed deck snapshot, automatic version number, optional change note, warnings, import metrics, raw decklist, and metadata snapshot.
 - `cards`: caches Scryfall card data by normalized card name.
 
 The API creates indexes for cached card lookup by `cards.name_key` and deck sorting by `decks.updated_at`.
 
-Although the collection is named `deck_versions`, the current update flow deletes old version documents for a deck and inserts a replacement active version. Durable version history and version comparison are deferred.
+Deck versions are linear. Each import starts at version 1, each meaningful edit appends the next version number, and restoring an old version creates another new latest version rather than mutating the historical record. Saves that match the selected version do not create a new version.
 
 ## Data Flow
 Deck import and update follow the same main flow:
@@ -65,7 +67,7 @@ Deck import and update follow the same main flow:
 2. The FastAPI server parses card quantities, names, and sideboard/mainboard sections.
 3. The server checks MongoDB for cached card data by normalized card name.
 4. Cache misses are resolved through Scryfall, then written to the `cards` collection.
-5. The server stores deck metadata in `decks` and the active parsed deck payload in `deck_versions`.
+5. The server stores deck metadata in `decks` and appends the parsed deck payload in `deck_versions`.
 6. The client navigates to or refreshes the deck detail view and renders grouped card information from the API response.
 
 ## Deferred Architecture Areas
@@ -74,4 +76,4 @@ The current codebase leaves room for several planned areas:
 - Legality checks need real format rules and surfaced route/client behavior.
 - Deck statistics need complete calculation and display.
 - Matchups and tournaments need persistence models, API routes, and UI workflows.
-- Version history needs durable storage and user-facing comparison instead of replacing the previous active version.
+- Version comparison can build on the durable linear version history.
