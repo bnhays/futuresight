@@ -103,6 +103,11 @@ Sideboard
     const recentDecksList = document.querySelector("#recent-decks-list");
     const randomCardArt = document.querySelector("#random-card-art");
     const refreshCardArtButton = document.querySelector("#refresh-card-art");
+    const RANDOM_CARD_ART_BUFFER_SIZE = 5;
+    const randomCardArtBuffer = [];
+    let randomCardArtDecks = null;
+    let randomCardArtDecksPromise = null;
+    let randomCardArtFillPromise = null;
 
     function formatFormat(format) {
       if (!format) return "";
@@ -202,6 +207,76 @@ Sideboard
       return (deck.cards || []).filter((card) => card.card_data?.image_uri);
     }
 
+    function preloadImage(src) {
+      return new Promise((resolve, reject) => {
+        const image = new Image();
+        image.onload = () => resolve();
+        image.onerror = () => reject(new Error("Could not preload card art."));
+        image.src = src;
+      });
+    }
+
+    async function getRandomCardArtDecks() {
+      if (randomCardArtDecks) return randomCardArtDecks;
+      if (randomCardArtDecksPromise) return randomCardArtDecksPromise;
+
+      randomCardArtDecksPromise = (async () => {
+        const response = await fetch(`${API_URL}/decks`);
+        const decks = await response.json();
+        if (!response.ok) {
+          throw new Error(decks.detail || "Could not load decks.");
+        }
+
+        randomCardArtDecks = Array.isArray(decks) ? decks : [];
+        return randomCardArtDecks;
+      })().finally(() => {
+        randomCardArtDecksPromise = null;
+      });
+
+      return randomCardArtDecksPromise;
+    }
+
+    async function loadRandomCardArtCandidate() {
+      const decks = await getRandomCardArtDecks();
+      const shuffledDecks = shuffle(decks);
+
+      for (const deckSummary of shuffledDecks) {
+        const detailResponse = await fetch(`${API_URL}/decks/${deckSummary.id}`);
+        const deck = await detailResponse.json();
+        if (!detailResponse.ok) continue;
+
+        const cardsWithArt = getCardsWithArt(deck);
+        if (!cardsWithArt.length) continue;
+
+        for (const card of shuffle(cardsWithArt)) {
+          try {
+            await preloadImage(card.card_data.image_uri);
+            return { deck, card };
+          } catch {
+            continue;
+          }
+        }
+      }
+
+      return null;
+    }
+
+    async function fillRandomCardArtBuffer() {
+      if (randomCardArtFillPromise) return randomCardArtFillPromise;
+
+      randomCardArtFillPromise = (async () => {
+        while (randomCardArtBuffer.length < RANDOM_CARD_ART_BUFFER_SIZE) {
+          const candidate = await loadRandomCardArtCandidate();
+          if (!candidate) break;
+          randomCardArtBuffer.push(candidate);
+        }
+      })().finally(() => {
+        randomCardArtFillPromise = null;
+      });
+
+      return randomCardArtFillPromise;
+    }
+
     function renderRandomCardArt(deck, card) {
       randomCardArt.innerHTML = "";
 
@@ -226,31 +301,26 @@ Sideboard
 
     async function loadRandomCardArt() {
       refreshCardArtButton.disabled = true;
-      renderRandomCardMessage("Loading card art...");
 
       try {
-        const response = await fetch(`${API_URL}/decks`);
-        const decks = await response.json();
-        if (!response.ok) {
-          throw new Error(decks.detail || "Could not load decks.");
+        if (!randomCardArtBuffer.length) {
+          renderRandomCardMessage("Loading card art...");
+          const candidate = await loadRandomCardArtCandidate();
+          if (candidate) {
+            randomCardArtBuffer.push(candidate);
+          }
         }
 
-        const shuffledDecks = shuffle(Array.isArray(decks) ? decks : []);
-        if (!shuffledDecks.length) {
-          renderRandomCardMessage("No saved decks yet.");
+        const candidate = randomCardArtBuffer.shift();
+        if (candidate) {
+          renderRandomCardArt(candidate.deck, candidate.card);
+          fillRandomCardArtBuffer().catch(() => {});
           return;
         }
 
-        for (const deckSummary of shuffledDecks) {
-          const detailResponse = await fetch(`${API_URL}/decks/${deckSummary.id}`);
-          const deck = await detailResponse.json();
-          if (!detailResponse.ok) continue;
-
-          const cardsWithArt = getCardsWithArt(deck);
-          if (!cardsWithArt.length) continue;
-
-          const card = cardsWithArt[Math.floor(Math.random() * cardsWithArt.length)];
-          renderRandomCardArt(deck, card);
+        const decks = await getRandomCardArtDecks();
+        if (!decks.length) {
+          renderRandomCardMessage("No saved decks yet.");
           return;
         }
 

@@ -10,11 +10,29 @@ const { title } = Astro.props;
 ---
 
 <!doctype html>
-<html lang="en">
+<html lang="en" data-theme="light">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
     <title>{title}</title>
+    <script is:inline>
+      (() => {
+        const storageKey = "future-sight-theme";
+        const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+        let storedTheme = null;
+        try {
+          storedTheme = window.localStorage.getItem(storageKey);
+        } catch {
+          storedTheme = null;
+        }
+        if (storedTheme !== "dark" && storedTheme !== "light") {
+          storedTheme = null;
+        }
+        const theme = storedTheme || (systemPrefersDark ? "dark" : "light");
+        document.documentElement.dataset.theme = theme;
+      })();
+    </script>
   </head>
   <body>
     <header class="site-header">
@@ -32,5 +50,40 @@ const { title } = Astro.props;
     <main>
       <slot />
     </main>
+    <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch to dark mode" aria-pressed="false">
+      <span class="theme-toggle-icon" aria-hidden="true"></span>
+      <span class="theme-toggle-text">Dark</span>
+    </button>
+    <script is:inline>
+      (() => {
+        const storageKey = "future-sight-theme";
+        const toggle = document.querySelector("#theme-toggle");
+        const toggleText = toggle?.querySelector(".theme-toggle-text");
+        const icon = toggle?.querySelector(".theme-toggle-icon");
+
+        function applyTheme(theme) {
+          const isDark = theme === "dark";
+          document.documentElement.dataset.theme = isDark ? "dark" : "light";
+          toggle?.setAttribute("aria-pressed", String(isDark));
+          toggle?.setAttribute("aria-label", `Switch to ${isDark ? "light" : "dark"} mode`);
+          if (toggleText) toggleText.textContent = isDark ? "Light" : "Dark";
+          if (icon) icon.textContent = isDark ? "☀" : "☾";
+        }
+
+        if (!toggle) return;
+
+        applyTheme(document.documentElement.dataset.theme || "light");
+
+        toggle.addEventListener("click", () => {
+          const nextTheme = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+          try {
+            window.localStorage.setItem(storageKey, nextTheme);
+          } catch {
+            // Theme still applies for the current page if preference storage is unavailable.
+          }
+          applyTheme(nextTheme);
+        });
+      })();
+    </script>
   </body>
 </html>

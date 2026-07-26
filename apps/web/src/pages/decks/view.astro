@@ -446,6 +446,72 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       return orderedTypes.map((type) => [type, groups[type]]);
     }
 
+    function getManaCurveBucket(card) {
+      const type = getListType(card.card_data?.type_line || "");
+      if (type === "Land") return null;
+
+      const manaValue = Number(card.card_data?.cmc ?? 0);
+      if (!Number.isFinite(manaValue)) return 0;
+      return Math.min(Math.max(0, Math.floor(manaValue)), 7);
+    }
+
+    function getManaCurve(cards) {
+      const buckets = Array.from({ length: 8 }, (_, manaValue) => ({
+        manaValue,
+        label: manaValue === 7 ? "7+" : String(manaValue),
+        count: 0,
+      }));
+
+      (cards || []).forEach((card) => {
+        if ((card.section || "mainboard") !== "mainboard") return;
+        const bucket = getManaCurveBucket(card);
+        if (bucket === null) return;
+        buckets[bucket].count += Number(card.quantity || 0);
+      });
+
+      return buckets;
+    }
+
+    function renderManaCurve(cards) {
+      const curve = getManaCurve(cards);
+      const maxCount = Math.max(1, ...curve.map((bucket) => bucket.count));
+
+      const panel = document.createElement("section");
+      panel.className = "mana-curve-panel";
+      panel.setAttribute("aria-labelledby", "mana-curve-heading");
+
+      const heading = document.createElement("h2");
+      heading.id = "mana-curve-heading";
+      heading.textContent = "Mana Curve";
+      panel.append(heading);
+
+      const bars = document.createElement("div");
+      bars.className = "mana-curve-bars";
+
+      curve.forEach((bucket) => {
+        const bar = document.createElement("div");
+        bar.className = "mana-curve-bar";
+
+        const count = document.createElement("span");
+        count.className = "mana-curve-count";
+        count.textContent = String(bucket.count);
+
+        const fill = document.createElement("span");
+        fill.className = "mana-curve-fill";
+        fill.style.height = `${Math.max(0.12, bucket.count / maxCount) * 100}%`;
+
+        const label = document.createElement("span");
+        label.className = "mana-curve-label";
+        label.textContent = bucket.label;
+
+        bar.append(count, fill, label);
+        bars.append(bar);
+      });
+
+      panel.append(bars);
+      return panel;
+    }
+
     function normalizeCardName(name) {
       return String(name || "").trim().toLowerCase().replace(/\s+/g, " ");
     }
@@ -619,13 +685,17 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 
       const defaultPreviewCard = findThumbnailCard(cards) || (groups.mainboard || [])[0] || cards[0];
       if (defaultPreviewCard) {
+        const previewColumn = document.createElement("div");
+        previewColumn.className = "deck-preview-column";
+
         const preview = document.createElement("section");
         preview.className = "deck-card-preview-panel";
 
         const previewContentEl = document.createElement("div");
         previewContentEl.className = "deck-card-preview-content";
         preview.append(previewContentEl);
-        deckSections.append(preview);
+        previewColumn.append(preview, renderManaCurve(cards));
+        deckSections.append(previewColumn);
         previewContent = previewContentEl;
         renderHoverPreview(defaultPreviewCard, previewContent);
       }
