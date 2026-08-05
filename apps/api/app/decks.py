@@ -45,6 +45,7 @@ class DeckVersionMetadataRequest(BaseModel):
 
 class MatchupHistoryRequest(BaseModel):
     opponent_deck: str = Field(min_length=1, max_length=80)
+    opponent_deck_id: str | None = None
     tournament_name: str = Field(min_length=1, max_length=120)
     outcome: str = Field(min_length=1, max_length=20)
 
@@ -156,9 +157,11 @@ def normalize_matchup_text(value: str, max_length: int) -> str:
 
 
 def serialize_matchup_history_entry(matchup: dict) -> MatchupHistoryEntry:
+    opponent_deck_id = matchup.get("opponent_deck_id")
     return MatchupHistoryEntry(
         id=str(matchup.get("id") or matchup.get("_id") or ObjectId()),
         opponent_deck=matchup.get("opponent_deck") or "Unknown Deck",
+        opponent_deck_id=str(opponent_deck_id) if opponent_deck_id else None,
         tournament_name=matchup.get("tournament_name") or "Unknown Tournament",
         outcome=matchup.get("outcome") or "",
         created_at=serialize_datetime(matchup.get("created_at")),
@@ -379,6 +382,25 @@ def parse_object_id(value: str) -> ObjectId:
     if not ObjectId.is_valid(value):
         raise HTTPException(status_code=404, detail="Deck not found.")
     return ObjectId(value)
+
+
+def parse_matchup_object_id(value: str) -> ObjectId:
+    if not ObjectId.is_valid(value):
+        raise HTTPException(status_code=404, detail="Matchup not found.")
+    return ObjectId(value)
+
+
+async def normalize_matchup_opponent_deck_id(db, value: str | None) -> ObjectId | None:
+    deck_id = (value or "").strip()
+    if not deck_id:
+        return None
+
+    opponent_deck_id = parse_object_id(deck_id)
+    opponent_deck = await db.decks.find_one({"_id": opponent_deck_id})
+    if not opponent_deck:
+        raise HTTPException(status_code=400, detail="Opponent deck was not found.")
+
+    return opponent_deck_id
 
 
 def normalize_name_key(name: str) -> str:
@@ -742,6 +764,7 @@ async def create_version_matchup(
     version = await get_selected_version(db, deck, version_id=version_id)
     now = utc_now()
     opponent_deck = normalize_matchup_text(payload.opponent_deck, 80)
+    opponent_deck_id = await normalize_matchup_opponent_deck_id(db, payload.opponent_deck_id)
     tournament_name = normalize_matchup_text(payload.tournament_name, 120)
     outcome = normalize_matchup_text(payload.outcome, 20)
     if not opponent_deck or not tournament_name or not outcome:
@@ -750,6 +773,7 @@ async def create_version_matchup(
     matchup = {
         "id": ObjectId(),
         "opponent_deck": opponent_deck,
+        "opponent_deck_id": opponent_deck_id,
         "tournament_name": tournament_name,
         "outcome": outcome,
         "created_at": now,
@@ -761,6 +785,79 @@ async def create_version_matchup(
     )
 
     return serialize_matchup_history_entry(matchup)
+
+
+@router.put(
+    "/{deck_id}/versions/{version_id}/matchups/{matchup_id}",
+    response_model=MatchupHistoryEntry,
+)
+async def update_version_matchup(
+    deck_id: str,
+    version_id: str,
+    matchup_id: str,
+    payload: MatchupHistoryRequest,
+) -> MatchupHistoryEntry:
+    db = get_database()
+    deck_object_id = parse_object_id(deck_id)
+    matchup_object_id = parse_matchup_object_id(matchup_id)
+    deck = await db.decks.find_one({"_id": deck_object_id})
+    if not deck:
+        raise HTTPException(status_code=404, detail="Deck not found.")
+
+    version = await get_selected_version(db, deck, version_id=version_id)
+    existing_matchup = next(
+        (matchup for matchup in version.get("matchups", []) if matchup.get("id") == matchup_object_id),
+        None,
+    )
+    if not existing_matchup:
+        raise HTTPException(status_code=404, detail="Matchup not found.")
+
+    opponent_deck = normalize_matchup_text(payload.opponent_deck, 80)
+    opponent_deck_id = await normalize_matchup_opponent_deck_id(db, payload.opponent_deck_id)
+    tournament_name = normalize_matchup_text(payload.tournament_name, 120)
+    outcome = normalize_matchup_text(payload.outcome, 20)
+    if not opponent_deck or not tournament_name or not outcome:
+        raise HTTPException(status_code=400, detail="Matchup fields cannot be blank.")
+
+    updates = {
+        "matchups.$.opponent_deck": opponent_deck,
+        "matchups.$.opponent_deck_id": opponent_deck_id,
+        "matchups.$.tournament_name": tournament_name,
+        "matchups.$.outcome": outcome,
+    }
+    await db.deck_versions.update_one(
+        {"_id": version["_id"], "deck_id": deck_object_id, "matchups.id": matchup_object_id},
+        {"$set": updates},
+    )
+
+    updated_matchup = {
+        **existing_matchup,
+        "opponent_deck": opponent_deck,
+        "opponent_deck_id": opponent_deck_id,
+        "tournament_name": tournament_name,
+        "outcome": outcome,
+    }
+    return serialize_matchup_history_entry(updated_matchup)
+
+
+@router.delete("/{deck_id}/versions/{version_id}/matchups/{matchup_id}")
+async def delete_version_matchup(deck_id: str, version_id: str, matchup_id: str) -> dict[str, bool]:
+    db = get_database()
+    deck_object_id = parse_object_id(deck_id)
+    matchup_object_id = parse_matchup_object_id(matchup_id)
+    deck = await db.decks.find_one({"_id": deck_object_id})
+    if not deck:
+        raise HTTPException(status_code=404, detail="Deck not found.")
+
+    version = await get_selected_version(db, deck, version_id=version_id)
+    result = await db.deck_versions.update_one(
+        {"_id": version["_id"], "deck_id": deck_object_id, "matchups.id": matchup_object_id},
+        {"$pull": {"matchups": {"id": matchup_object_id}}},
+    )
+    if not result.modified_count:
+        raise HTTPException(status_code=404, detail="Matchup not found.")
+
+    return {"deleted": True}
 
 
 @router.get("/{deck_id}", response_model=DeckDetail)

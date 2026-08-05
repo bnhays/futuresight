@@ -823,6 +823,14 @@ button:disabled:focus {
   border: 1px solid var(--color-border-soft);
   border-radius: 6px;
   background: var(--color-subtle-bg);
+  cursor: pointer;
+}
+
+.matchup-card:hover,
+.matchup-card:focus,
+.matchup-card-active {
+  border-color: var(--color-focus-border);
+  outline: none;
 }
 
 .matchup-card h3 {
@@ -878,7 +886,8 @@ button:disabled:focus {
   font-weight: 700;
 }
 
-.matchup-form input {
+.matchup-form input,
+.matchup-form select {
   width: 100%;
   min-height: 2.5rem;
   border: 1px solid var(--color-input-border);
@@ -888,6 +897,24 @@ button:disabled:focus {
   background: var(--color-subtle-bg);
   font: inherit;
   font-weight: 400;
+}
+
+.matchup-edit-panel {
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.9rem;
+  border: 1px solid var(--color-border-soft);
+  border-radius: 6px;
+  background: var(--color-subtle-bg);
+}
+
+.matchup-edit-form {
+  grid-template-columns: minmax(10rem, 1fr) minmax(10rem, 1fr) minmax(10rem, 1fr) minmax(6rem, 8rem) auto;
+  padding-top: 0;
+}
+
+.matchup-edit-actions {
+  align-self: end;
 }
 
 .matchup-form-actions {

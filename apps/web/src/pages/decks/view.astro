@@ -134,6 +134,8 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     let initialDeck = null;
     let inspectedCardKey = null;
     let matchupHistoryShowingAll = false;
+    let activeMatchupId = null;
+    let libraryDecks = null;
 
     function formatDateTime(value) {
       if (!value) return "";
@@ -680,6 +682,19 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     function renderMatchupCard(matchup) {
       const card = document.createElement("article");
       card.className = "matchup-card";
+      if (matchup.id === activeMatchupId) {
+        card.classList.add("matchup-card-active");
+      }
+      card.tabIndex = 0;
+      card.setAttribute("role", "button");
+      card.setAttribute("aria-label", `Edit matchup against ${matchup.opponent_deck || "Unknown Deck"}`);
+      card.addEventListener("click", () => openMatchupEditor(matchup.id));
+      card.addEventListener("keydown", (event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          openMatchupEditor(matchup.id);
+        }
+      });
 
       const opponent = document.createElement("h3");
       opponent.textContent = matchup.opponent_deck || "Unknown Deck";
@@ -704,6 +719,230 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       return card;
     }
 
+    async function loadLibraryDecks() {
+      if (libraryDecks) return libraryDecks;
+
+      const response = await fetch(`${API_URL}/decks`);
+      const decks = await response.json();
+      if (!response.ok) {
+        throw new Error(decks.detail || "Could not load deck library.");
+      }
+
+      libraryDecks = Array.isArray(decks) ? decks : [];
+      return libraryDecks;
+    }
+
+    function selectedMatchup() {
+      return (currentDeck?.matchups || []).find((matchup) => matchup.id === activeMatchupId) || null;
+    }
+
+    function openMatchupEditor(matchupId) {
+      activeMatchupId = activeMatchupId === matchupId ? null : matchupId;
+      renderDeck(currentDeck.cards || []);
+    }
+
+    async function saveEditedMatchup(event, form, status, submitButton) {
+      event.preventDefault();
+      if (!deckId || !currentVersionId() || !activeMatchupId) return;
+
+      const formData = new FormData(form);
+      const selectedDeckId = String(formData.get("opponent_deck_id") || "").trim();
+      const selectedDeck = (libraryDecks || []).find((deck) => deck.id === selectedDeckId);
+      const opponentDeck = selectedDeck?.name || String(formData.get("opponent_deck") || "").trim();
+      const payload = {
+        opponent_deck: opponentDeck,
+        opponent_deck_id: selectedDeckId || null,
+        tournament_name: String(formData.get("tournament_name") || "").trim(),
+        outcome: String(formData.get("outcome") || "").trim(),
+      };
+
+      if (!payload.opponent_deck || !payload.tournament_name || !payload.outcome) {
+        status.textContent = "Fill out all matchup fields.";
+        return;
+      }
+
+      submitButton.disabled = true;
+      status.textContent = "Saving...";
+
+      try {
+        const response = await fetch(
+          `${API_URL}/decks/${deckId}/versions/${currentVersionId()}/matchups/${activeMatchupId}`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          },
+        );
+        const matchup = await response.json();
+        if (!response.ok) {
+          throw new Error(matchup.detail || "Could not update matchup.");
+        }
+
+        currentDeck.matchups = (currentDeck.matchups || []).map((item) => (
+          item.id === matchup.id ? matchup : item
+        ));
+        initialDeck = cloneDeck(currentDeck);
+        activeMatchupId = null;
+        renderDeck(currentDeck.cards || []);
+      } catch (error) {
+        status.textContent = error instanceof Error ? error.message : "Could not update matchup.";
+        submitButton.disabled = false;
+      }
+    }
+
+    async function deleteMatchup(status, deleteButton) {
+      if (!deckId || !currentVersionId() || !activeMatchupId) return;
+      const confirmed = window.confirm("Delete this matchup?");
+      if (!confirmed) return;
+
+      deleteButton.disabled = true;
+      status.textContent = "Deleting...";
+
+      try {
+        const response = await fetch(
+          `${API_URL}/decks/${deckId}/versions/${currentVersionId()}/matchups/${activeMatchupId}`,
+          { method: "DELETE" },
+        );
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.detail || "Could not delete matchup.");
+        }
+
+        currentDeck.matchups = (currentDeck.matchups || []).filter((matchup) => matchup.id !== activeMatchupId);
+        initialDeck = cloneDeck(currentDeck);
+        activeMatchupId = null;
+        renderDeck(currentDeck.cards || []);
+      } catch (error) {
+        status.textContent = error instanceof Error ? error.message : "Could not delete matchup.";
+        deleteButton.disabled = false;
+      }
+    }
+
+    function renderMatchupEditPanel(matchup) {
+      const panel = document.createElement("div");
+      panel.className = "matchup-edit-panel";
+
+      const form = document.createElement("form");
+      form.className = "matchup-form matchup-edit-form";
+
+      const deckSelectLabel = document.createElement("label");
+      const deckSelectText = document.createElement("span");
+      deckSelectText.textContent = "Library Deck";
+      const deckSelect = document.createElement("select");
+      deckSelect.name = "opponent_deck_id";
+      const customOption = document.createElement("option");
+      customOption.value = "";
+      customOption.textContent = "Custom opponent";
+      deckSelect.append(customOption);
+      (libraryDecks || [])
+        .filter((deck) => deck.id !== deckId)
+        .forEach((deck) => {
+          const option = document.createElement("option");
+          option.value = deck.id;
+          option.textContent = deck.name || "Untitled Deck";
+          option.selected = deck.id === matchup.opponent_deck_id;
+          deckSelect.append(option);
+        });
+      deckSelectLabel.append(deckSelectText, deckSelect);
+
+      const opponentLabel = document.createElement("label");
+      const opponentText = document.createElement("span");
+      opponentText.textContent = "Opponent Deck";
+      const opponentInput = document.createElement("input");
+      opponentInput.name = "opponent_deck";
+      opponentInput.type = "text";
+      opponentInput.maxLength = 80;
+      opponentInput.autocomplete = "off";
+      opponentInput.value = matchup.opponent_deck || "";
+      opponentLabel.append(opponentText, opponentInput);
+
+      deckSelect.addEventListener("change", () => {
+        const selectedDeck = (libraryDecks || []).find((deck) => deck.id === deckSelect.value);
+        if (selectedDeck) {
+          opponentInput.value = selectedDeck.name || "Untitled Deck";
+        }
+      });
+      opponentInput.addEventListener("input", () => {
+        const selectedDeck = (libraryDecks || []).find((deck) => deck.id === deckSelect.value);
+        if (selectedDeck && opponentInput.value !== (selectedDeck.name || "Untitled Deck")) {
+          deckSelect.value = "";
+        }
+      });
+
+      const tournamentLabel = document.createElement("label");
+      const tournamentText = document.createElement("span");
+      tournamentText.textContent = "Tournament";
+      const tournamentInput = document.createElement("input");
+      tournamentInput.name = "tournament_name";
+      tournamentInput.type = "text";
+      tournamentInput.maxLength = 120;
+      tournamentInput.autocomplete = "off";
+      tournamentInput.value = matchup.tournament_name || "";
+      tournamentLabel.append(tournamentText, tournamentInput);
+
+      const outcomeLabel = document.createElement("label");
+      const outcomeText = document.createElement("span");
+      outcomeText.textContent = "Outcome";
+      const outcomeInput = document.createElement("input");
+      outcomeInput.name = "outcome";
+      outcomeInput.type = "text";
+      outcomeInput.maxLength = 20;
+      outcomeInput.placeholder = "3-2";
+      outcomeInput.autocomplete = "off";
+      outcomeInput.value = matchup.outcome || "";
+      outcomeLabel.append(outcomeText, outcomeInput);
+
+      const actions = document.createElement("div");
+      actions.className = "matchup-form-actions matchup-edit-actions";
+
+      const submitButton = document.createElement("button");
+      submitButton.className = "action-button primary-button hollow-button";
+      submitButton.type = "submit";
+      submitButton.textContent = "Save";
+
+      const cancelButton = document.createElement("button");
+      cancelButton.className = "action-button muted hollow-button";
+      cancelButton.type = "button";
+      cancelButton.textContent = "Cancel";
+      cancelButton.addEventListener("click", () => {
+        activeMatchupId = null;
+        renderDeck(currentDeck.cards || []);
+      });
+
+      const deleteButton = document.createElement("button");
+      deleteButton.className = "action-button danger-button hollow-button";
+      deleteButton.type = "button";
+      deleteButton.textContent = "Delete";
+
+      const status = document.createElement("span");
+      status.className = "matchup-status";
+      status.setAttribute("role", "status");
+      status.setAttribute("aria-live", "polite");
+
+      deleteButton.addEventListener("click", () => deleteMatchup(status, deleteButton));
+      actions.append(submitButton, cancelButton, deleteButton, status);
+      form.append(deckSelectLabel, opponentLabel, tournamentLabel, outcomeLabel, actions);
+      form.addEventListener("submit", (event) => saveEditedMatchup(event, form, status, submitButton));
+
+      panel.append(form);
+      return panel;
+    }
+
+    function renderMatchupEditLoadingPanel() {
+      const panel = document.createElement("div");
+      panel.className = "matchup-edit-panel";
+      const status = document.createElement("p");
+      status.className = "matchup-status";
+      status.textContent = "Loading deck library...";
+      panel.append(status);
+      loadLibraryDecks()
+        .then(() => renderDeck(currentDeck.cards || []))
+        .catch((error) => {
+          status.textContent = error instanceof Error ? error.message : "Could not load deck library.";
+        });
+      return panel;
+    }
+
     async function saveMatchup(event, form, status, submitButton) {
       event.preventDefault();
       if (!deckId || !currentVersionId()) return;
@@ -711,6 +950,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       const formData = new FormData(form);
       const payload = {
         opponent_deck: String(formData.get("opponent_deck") || "").trim(),
+        opponent_deck_id: null,
         tournament_name: String(formData.get("tournament_name") || "").trim(),
         outcome: String(formData.get("outcome") || "").trim(),
       };
@@ -868,6 +1108,13 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       }
 
       section.append(grid);
+
+      const matchup = selectedMatchup();
+      if (matchup && libraryDecks) {
+        section.append(renderMatchupEditPanel(matchup));
+      } else if (matchup) {
+        section.append(renderMatchupEditLoadingPanel());
+      }
 
       const formContainer = document.createElement("div");
       formContainer.className = "matchup-form-container";

@@ -57,6 +57,7 @@ class DeckVersionSummary(BaseModel):
 class MatchupHistoryEntry(BaseModel):
     id: str
     opponent_deck: str
+    opponent_deck_id: str | None = None
     tournament_name: str
     outcome: str
     created_at: str | None = None
