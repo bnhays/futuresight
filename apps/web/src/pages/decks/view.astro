@@ -865,11 +865,6 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         visibleMatchups.forEach((matchup) => {
           grid.append(renderMatchupCard(matchup));
         });
-      } else {
-        const empty = document.createElement("p");
-        empty.className = "empty-state matchup-empty";
-        empty.textContent = "No matchups logged for this version.";
-        grid.append(empty);
       }
 
       section.append(grid);
