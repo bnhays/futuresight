@@ -94,14 +94,14 @@ def normalize_header(line: str) -> str:
 def parse_card_line(line: str) -> tuple[int, str] | None:
     parts = line.split(maxsplit=1)
     if len(parts) != 2:
-        return None
+        return 1, clean_card_name(line)
 
     quantity_text, name = parts
     if quantity_text.lower().endswith("x"):
         quantity_text = quantity_text[:-1]
 
     if not quantity_text.isdigit():
-        return None
+        return 1, clean_card_name(line)
 
     return int(quantity_text), clean_card_name(name)
 
