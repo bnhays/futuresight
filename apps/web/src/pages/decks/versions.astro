@@ -1,0 +1,286 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+---
+
+<BaseLayout title="Deck Versions | Future Sight">
+  <section class="decks-shell">
+    <div class="page-heading">
+      <div>
+        <h1 id="versions-title">Deck Versions</h1>
+        <p id="versions-meta" class="deck-detail-description">Loading versions...</p>
+      </div>
+      <a id="back-to-deck" class="button-link action-button muted" href="/decks">Back</a>
+    </div>
+
+    <div id="deck-versions-list" class="recent-decks-list" aria-live="polite">
+      <p class="empty-state">Loading versions...</p>
+    </div>
+  </section>
+
+  <script>
+    const API_URL = import.meta.env.PUBLIC_API_URL || "http://localhost:8000";
+    const deckId = new URLSearchParams(window.location.search).get("id");
+    const versionsTitle = document.querySelector("#versions-title");
+    const versionsMeta = document.querySelector("#versions-meta");
+    const backToDeck = document.querySelector("#back-to-deck");
+    const deckVersionsList = document.querySelector("#deck-versions-list");
+
+    function formatDateTime(value) {
+      if (!value) return "";
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return "";
+      return date.toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      });
+    }
+
+    function versionLabel(version) {
+      return version.version_name ? `v${version.version_number} - ${version.version_name}` : `v${version.version_number}`;
+    }
+
+    async function saveVersionMetadata(deck, version, item, versionNameInput, changeNoteInput, saveButton) {
+      saveButton.disabled = true;
+
+      try {
+        const response = await fetch(`${API_URL}/decks/${deck.id}/versions/${version.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            version_name: versionNameInput.value.trim(),
+            change_note: changeNoteInput.value.trim(),
+          }),
+        });
+        const updatedVersion = await response.json();
+        if (!response.ok) {
+          throw new Error(updatedVersion.detail || "Could not save version.");
+        }
+
+        const existingChanges = version.changes || [];
+        Object.assign(version, updatedVersion);
+        if (!updatedVersion.changes?.length) {
+          version.changes = existingChanges;
+        }
+        versionsMeta.textContent = "Version saved.";
+        renderVersionRow(deck, version, item);
+      } catch (error) {
+        saveButton.disabled = false;
+        versionsMeta.textContent = error instanceof Error ? error.message : "Could not save version.";
+      }
+    }
+
+    function renderVersionEditForm(deck, version, item) {
+      item.innerHTML = "";
+
+      const form = document.createElement("form");
+      form.className = "deck-version-edit-form";
+
+      const versionNameLabel = document.createElement("label");
+      const versionNameText = document.createElement("span");
+      versionNameText.textContent = "Version Name";
+      const versionNameInput = document.createElement("input");
+      versionNameInput.type = "text";
+      versionNameInput.maxLength = 80;
+      versionNameInput.value = version.version_name || "";
+      versionNameLabel.append(versionNameText, versionNameInput);
+
+      const changeNoteLabel = document.createElement("label");
+      const changeNoteText = document.createElement("span");
+      changeNoteText.textContent = "Change Note";
+      const changeNoteInput = document.createElement("input");
+      changeNoteInput.type = "text";
+      changeNoteInput.maxLength = 240;
+      changeNoteInput.value = version.change_note || "";
+      changeNoteLabel.append(changeNoteText, changeNoteInput);
+
+      const actions = document.createElement("span");
+      actions.className = "deck-list-actions";
+
+      const saveButton = document.createElement("button");
+      saveButton.className = "action-button primary-button hollow-button";
+      saveButton.type = "submit";
+      saveButton.textContent = "Save";
+
+      const cancelButton = document.createElement("button");
+      cancelButton.className = "action-button muted hollow-button";
+      cancelButton.type = "button";
+      cancelButton.textContent = "Cancel";
+      cancelButton.addEventListener("click", () => {
+        renderVersionRow(deck, version, item);
+      });
+
+      actions.append(saveButton, cancelButton);
+      form.append(versionNameLabel, changeNoteLabel, actions);
+      form.addEventListener("submit", (event) => {
+        event.preventDefault();
+        saveVersionMetadata(deck, version, item, versionNameInput, changeNoteInput, saveButton);
+      });
+
+      item.append(form);
+      versionNameInput.focus();
+    }
+
+    function formatSection(section) {
+      return section === "sideboard" ? "Sideboard" : "Mainboard";
+    }
+
+    function formatVersionChange(change) {
+      if (change.change_type === "added") {
+        return `+${change.quantity} ${change.name} (${formatSection(change.section)})`;
+      }
+
+      if (change.change_type === "removed") {
+        return `-${change.previous_quantity} ${change.name} (${formatSection(change.section)})`;
+      }
+
+      return `${change.previous_quantity} -> ${change.quantity} ${change.name} (${formatSection(change.section)})`;
+    }
+
+    function renderVersionSummary(version) {
+      const summary = document.createElement("div");
+      summary.className = "version-change-summary";
+      summary.hidden = true;
+
+      const changes = version.changes || [];
+      if (!changes.length) {
+        const empty = document.createElement("p");
+        empty.className = "version-change-empty";
+        empty.textContent = "No card changes.";
+        summary.append(empty);
+        return summary;
+      }
+
+      const list = document.createElement("ul");
+      list.className = "version-change-list";
+
+      changes.forEach((change) => {
+        const item = document.createElement("li");
+        item.className = `version-change version-change-${change.change_type}`;
+        item.textContent = formatVersionChange(change);
+        list.append(item);
+      });
+
+      summary.append(list);
+      return summary;
+    }
+
+    function renderVersionRow(deck, version, item) {
+      item.innerHTML = "";
+
+      const link = document.createElement("a");
+      link.className = "deck-list-content deck-list-link";
+      link.href = version.is_active
+        ? `/decks/view?id=${encodeURIComponent(deck.id)}`
+        : `/decks/view?id=${encodeURIComponent(deck.id)}&version_id=${encodeURIComponent(version.id)}`;
+
+      const info = document.createElement("span");
+      info.className = "deck-list-info";
+
+      const name = document.createElement("span");
+      name.className = "recent-deck-name";
+      name.textContent = versionLabel(version);
+
+      const createdAt = document.createElement("span");
+      createdAt.className = "deck-list-updated";
+      createdAt.textContent = `Saved ${formatDateTime(version.created_at)}`;
+      createdAt.hidden = !version.created_at;
+
+      const note = document.createElement("span");
+      note.className = "recent-deck-description";
+      note.textContent = version.change_note || "";
+      note.hidden = !version.change_note;
+
+      const meta = document.createElement("span");
+      meta.className = "recent-deck-meta version-list-latest";
+      meta.textContent = version.is_active ? "Latest" : "";
+      meta.hidden = !version.is_active;
+
+      info.append(name, createdAt, note, meta);
+      link.append(info);
+
+      const actions = document.createElement("span");
+      actions.className = "deck-list-actions";
+
+      const summary = renderVersionSummary(version);
+
+      const summaryButton = document.createElement("button");
+      summaryButton.className = "action-button primary-button hollow-button deck-list-delete version-summary-button";
+      summaryButton.type = "button";
+      summaryButton.textContent = "Summary";
+      summaryButton.setAttribute("aria-expanded", "false");
+      summaryButton.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        const expanded = summaryButton.getAttribute("aria-expanded") === "true";
+        summary.hidden = expanded;
+        summaryButton.setAttribute("aria-expanded", String(!expanded));
+        summaryButton.textContent = expanded ? "Summary" : "Hide";
+      });
+
+      const editButton = document.createElement("button");
+      editButton.className = "action-button success-button hollow-button deck-list-delete";
+      editButton.type = "button";
+      editButton.textContent = "Edit";
+      editButton.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        renderVersionEditForm(deck, version, item);
+      });
+
+      actions.append(summaryButton, editButton);
+      item.append(link, actions, summary);
+    }
+
+    function renderVersions(deck) {
+      const versions = deck.versions || [];
+      deckVersionsList.innerHTML = "";
+      versionsTitle.textContent = `${deck.name || "Untitled Deck"} Versions`;
+      versionsMeta.textContent = `${versions.length} saved ${versions.length === 1 ? "version" : "versions"}`;
+      backToDeck.href = `/decks/view?id=${encodeURIComponent(deck.id)}`;
+
+      if (!versions.length) {
+        const empty = document.createElement("p");
+        empty.className = "empty-state";
+        empty.textContent = "No versions saved yet.";
+        deckVersionsList.append(empty);
+        return;
+      }
+
+      versions.forEach((version) => {
+        const item = document.createElement("article");
+        item.className = "recent-deck-link deck-list-item";
+        renderVersionRow(deck, version, item);
+        deckVersionsList.append(item);
+      });
+    }
+
+    async function loadVersions() {
+      if (!deckId) {
+        versionsMeta.textContent = "No deck id was provided.";
+        deckVersionsList.innerHTML = "";
+        return;
+      }
+
+      try {
+        const response = await fetch(`${API_URL}/decks/${deckId}`);
+        const deck = await response.json();
+        if (!response.ok) {
+          throw new Error(deck.detail || "Could not load versions.");
+        }
+        renderVersions(deck);
+      } catch (error) {
+        versionsMeta.textContent = error instanceof Error ? error.message : "Could not load versions.";
+        deckVersionsList.innerHTML = "";
+        const empty = document.createElement("p");
+        empty.className = "empty-state";
+        empty.textContent = "Versions are unavailable.";
+        deckVersionsList.append(empty);
+      }
+    }
+
+    loadVersions();
+  </script>
+</BaseLayout>

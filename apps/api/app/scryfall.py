@@ -33,6 +33,7 @@ def normalize_card(raw: dict) -> dict[str, object] | None:
         "oracle_text": raw.get("oracle_text", ""),
         "colors": raw.get("colors", []),
         "color_identity": raw.get("color_identity", []),
+        "produced_mana": raw.get("produced_mana", []),
         "legalities": raw.get("legalities", {}),
         "image_uri": get_image_uri(raw),
         "scryfall_uri": raw.get("scryfall_uri"),

@@ -222,7 +222,6 @@ main {
 
 .import-form,
 .deck-panel,
-.deck-version-panel,
 .inspect-panel,
 .message-panel,
 .recent-decks-panel,
@@ -233,42 +232,6 @@ main {
   border: 1px solid var(--color-border);
   border-radius: 8px;
   background: var(--color-panel-bg);
-}
-
-.deck-version-panel {
-  grid-template-columns: minmax(12rem, 18rem) minmax(0, 1fr);
-  align-items: end;
-}
-
-.deck-version-panel label {
-  display: grid;
-  gap: 0.4rem;
-  font-weight: 700;
-}
-
-.deck-version-panel select {
-  width: 100%;
-  min-height: 2.5rem;
-  border: 1px solid var(--color-input-border);
-  border-radius: 6px;
-  padding: 0 0.7rem;
-  color: var(--color-heading);
-  background: var(--color-subtle-bg);
-  font: inherit;
-  font-weight: 400;
-}
-
-.deck-version-actions {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-}
-
-.deck-version-actions p {
-  margin: 0;
-  color: var(--color-muted);
 }
 
 .import-layout {
@@ -386,6 +349,7 @@ button:focus {
   font-size: 1rem;
   font-weight: 700;
   line-height: 1;
+  text-decoration: none;
 }
 
 .primary-button {
@@ -630,6 +594,39 @@ button:disabled:focus {
   z-index: 1;
 }
 
+.deck-list-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 0.5rem;
+}
+
+.deck-version-edit-form {
+  display: grid;
+  grid-template-columns: minmax(10rem, 16rem) minmax(14rem, 1fr) auto;
+  align-items: end;
+  gap: 0.75rem;
+}
+
+.deck-version-edit-form label {
+  display: grid;
+  gap: 0.35rem;
+  color: var(--color-heading);
+  font-weight: 700;
+}
+
+.deck-version-edit-form input {
+  width: 100%;
+  min-height: 2.5rem;
+  border: 1px solid var(--color-input-border);
+  border-radius: 6px;
+  padding: 0 0.7rem;
+  color: var(--color-heading);
+  background: var(--color-subtle-bg);
+  font: inherit;
+  font-weight: 400;
+}
+
 .recent-deck-header,
 .recent-deck-meta {
   display: flex;
@@ -669,6 +666,57 @@ button:disabled:focus {
   margin: 0;
   color: var(--color-muted);
   font-size: 0.92rem;
+}
+
+.version-list-latest {
+  color: var(--color-primary);
+  font-weight: 700;
+}
+
+.version-summary-button[aria-expanded="true"] {
+  color: var(--color-primary);
+  background: transparent;
+}
+
+.version-summary-button[aria-expanded="true"]:hover,
+.version-summary-button[aria-expanded="true"]:focus {
+  color: var(--color-primary-contrast);
+  background: var(--color-primary);
+}
+
+.version-change-summary {
+  grid-column: 1 / -1;
+  display: grid;
+  gap: 0.35rem;
+  padding-top: 0.25rem;
+}
+
+.version-change-list {
+  display: grid;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.version-change,
+.version-change-empty {
+  margin: 0;
+  font-size: 0.86rem;
+  font-weight: 700;
+  line-height: 1.25;
+}
+
+.version-change-added {
+  color: var(--color-success);
+}
+
+.version-change-modified {
+  color: var(--color-primary);
+}
+
+.version-change-removed {
+  color: var(--color-danger);
 }
 
 .message-panel {
@@ -712,7 +760,8 @@ button:disabled:focus {
 
 .deck-section,
 .deck-card-preview-panel,
-.mana-curve-panel {
+.mana-curve-panel,
+.land-colors-panel {
   display: grid;
   gap: 0.75rem;
   min-width: 0;
@@ -729,7 +778,8 @@ button:disabled:focus {
   text-align: center;
 }
 
-.mana-curve-panel h2 {
+.mana-curve-panel h2,
+.land-colors-panel h2 {
   margin: 0;
   font-size: 0.95rem;
   line-height: 1.15;
@@ -829,6 +879,51 @@ button:disabled:focus {
   color: var(--color-heading);
 }
 
+.land-color-bars {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.land-color-row {
+  display: grid;
+  grid-template-columns: 3.8rem minmax(0, 1fr) 2.6rem;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+  color: var(--color-muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.land-color-label,
+.land-color-value {
+  line-height: 1.15;
+}
+
+.land-color-label {
+  color: var(--color-heading);
+}
+
+.land-color-value {
+  text-align: right;
+}
+
+.land-color-track {
+  display: block;
+  min-width: 0;
+  height: 0.7rem;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-subtle-bg);
+}
+
+.land-color-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+}
+
 .card-qty {
   font-weight: 700;
   color: var(--color-heading);
@@ -836,19 +931,22 @@ button:disabled:focus {
 }
 
 .qty-control {
-  display: inline-grid;
-  grid-template-columns: 1rem minmax(1.4rem, auto);
+  position: relative;
+  display: inline-flex;
   align-items: center;
   justify-content: start;
-  gap: 0.3rem;
-  min-width: 2.7rem;
-  transform: translateX(-0.65rem);
+  min-width: 1.4rem;
 }
 
 .qty-buttons {
-  display: grid;
-  gap: 0.12rem;
+  position: absolute;
+  bottom: calc(100% - 0.12rem);
+  left: 50%;
+  z-index: 2;
+  display: flex;
+  gap: 0.15rem;
   opacity: 0;
+  transform: translateX(-50%);
   transition: opacity 0.15s ease;
 }
 
@@ -1295,7 +1393,7 @@ button:disabled:focus {
   z-index: 1;
   width: 0.68rem;
   height: 0.68rem;
-  font-size: 0.56rem;
+  font-size: 0.48rem;
   font-weight: 700;
 }
 
@@ -1310,7 +1408,7 @@ button:disabled:focus {
 }
 
 .mana-symbol-half .mana-symbol-mark {
-  font-size: 0.58rem;
+  font-size: 0.5rem;
 }
 
 .mana-symbol-phyrexian-mark {
@@ -1449,10 +1547,6 @@ button:disabled:focus {
     grid-template-columns: 1fr;
   }
 
-  .deck-version-panel {
-    grid-template-columns: 1fr;
-  }
-
   .import-layout {
     grid-template-columns: 1fr;
   }
@@ -1461,6 +1555,7 @@ button:disabled:focus {
   .mainboard-type-grid,
   .mainboard-type-column,
   .deck-list-item,
+  .deck-version-edit-form,
   .deck-list-link-with-thumbnail {
     grid-template-columns: 1fr;
   }

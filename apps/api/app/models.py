@@ -10,6 +10,7 @@ class ImportedCardData(BaseModel):
     oracle_text: str = ""
     colors: list[str] = Field(default_factory=list)
     color_identity: list[str] = Field(default_factory=list)
+    produced_mana: list[str] = Field(default_factory=list)
     legalities: dict[str, str] = Field(default_factory=dict)
     image_uri: str | None = None
     scryfall_uri: str | None = None
@@ -20,6 +21,14 @@ class ParsedDeckCard(BaseModel):
     name: str
     section: str
     card_data: ImportedCardData | None = None
+
+
+class DeckVersionCardChange(BaseModel):
+    change_type: str
+    name: str
+    section: str
+    previous_quantity: int = 0
+    quantity: int = 0
 
 
 class DeckSummary(BaseModel):
@@ -42,6 +51,7 @@ class DeckVersionSummary(BaseModel):
     change_note: str | None = None
     created_at: str | None = None
     is_active: bool = False
+    changes: list[DeckVersionCardChange] = Field(default_factory=list)
 
 
 class Matchup(BaseModel):

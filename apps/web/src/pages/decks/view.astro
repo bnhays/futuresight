@@ -11,25 +11,15 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         <p id="deck-meta">Loading deck...</p>
       </div>
       <div class="deck-actions">
-        <a class="button-link action-button muted" href="/">Back</a>
+        <a id="back-link" class="button-link action-button muted" href="/">Back</a>
         <button id="edit-deck" class="action-button success-button hollow-button" type="button">Edit</button>
-        <button id="versions-deck" class="action-button version-button hollow-button" type="button">Versions</button>
-        <button id="delete-deck" class="action-button danger-button hollow-button" type="button">Delete</button>
-      </div>
-    </div>
-
-    <section id="deck-version-panel" class="deck-version-panel" hidden>
-      <label>
-        <span>Version</span>
-        <select id="deck-version-select"></select>
-      </label>
-      <div class="deck-version-actions">
-        <p id="deck-version-note"></p>
+        <a id="versions-deck" class="action-button version-button hollow-button" href="/decks">Versions</a>
         <button id="restore-version" class="action-button primary-button hollow-button" type="button" hidden>
           Restore as Latest
         </button>
+        <button id="delete-deck" class="action-button danger-button hollow-button" type="button">Delete</button>
       </div>
-    </section>
+    </div>
 
     <section id="deck-edit-panel" class="deck-edit-panel" hidden>
       <form id="deck-edit-form" class="import-form deck-edit-form">
@@ -99,6 +89,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
   <script>
     const API_URL = import.meta.env.PUBLIC_API_URL || "http://localhost:8000";
     const COLOR_ORDER = ["W", "U", "B", "R", "G", "C"];
+    const LAND_COLOR_ORDER = ["W", "U", "B", "R", "G"];
     const MAINBOARD_TYPE_ORDER = ["Creature", "Planeswalker", "Artifact", "Enchantment", "Instant", "Sorcery", "Land"];
     const COLOR_LABELS = {
       W: "White",
@@ -110,14 +101,13 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     };
 
     const deckViewShell = document.querySelector(".deck-view-shell");
-    const deckId = new URLSearchParams(window.location.search).get("id");
+    const searchParams = new URLSearchParams(window.location.search);
+    const deckId = searchParams.get("id");
+    const selectedVersionId = searchParams.get("version_id");
+    const backLink = document.querySelector("#back-link");
     const deckTitle = document.querySelector("#deck-title");
     const deckDescription = document.querySelector("#deck-description");
     const deckMeta = document.querySelector("#deck-meta");
-    const deckVersionPanel = document.querySelector("#deck-version-panel");
-    const deckVersionSelect = document.querySelector("#deck-version-select");
-    const deckVersionNote = document.querySelector("#deck-version-note");
-    const restoreVersionButton = document.querySelector("#restore-version");
     const deckPanel = document.querySelector("#deck-panel");
     const deckSections = document.querySelector("#deck-sections");
     const inspectPanel = document.querySelector("#inspect-panel");
@@ -125,6 +115,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     const closeInspect = document.querySelector("#close-inspect");
     const editDeckButton = document.querySelector("#edit-deck");
     const versionsDeckButton = document.querySelector("#versions-deck");
+    const restoreVersionButton = document.querySelector("#restore-version");
     const deleteDeckButton = document.querySelector("#delete-deck");
     const deckEditPanel = document.querySelector("#deck-edit-panel");
     const deckEditForm = document.querySelector("#deck-edit-form");
@@ -142,7 +133,6 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     let currentDeck = null;
     let initialDeck = null;
     let inspectedCardKey = null;
-    let versionPanelOpen = false;
 
     function formatDateTime(value) {
       if (!value) return "";
@@ -158,7 +148,11 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     }
 
     function versionLabel(version) {
-      return `v${version.version_number}`;
+      return version.version_name ? `v${version.version_number} - ${version.version_name}` : `v${version.version_number}`;
+    }
+
+    function isPreviewMode(deck = currentDeck) {
+      return Boolean(selectedVersionId || (deck?.selected_version_id && deck?.active_version_id && deck.selected_version_id !== deck.active_version_id));
     }
 
     function groupBySection(cards) {
@@ -232,32 +226,19 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       deckMeta.textContent = `Format: ${formatFormat(deck.format || "modern")}${versionText}`;
     }
 
-    function renderVersionControls(deck) {
-      const versions = deck.versions || [];
-      deckVersionPanel.hidden = !versionPanelOpen || !versions.length;
-      versionsDeckButton.disabled = !versions.length;
-      deckVersionSelect.innerHTML = "";
-
-      versions.forEach((version) => {
-        const option = document.createElement("option");
-        option.value = version.id;
-        option.textContent = `${versionLabel(version)}${version.is_active ? " (Latest)" : ""}`;
-        option.selected = version.id === deck.selected_version_id;
-        deckVersionSelect.append(option);
-      });
-
-      const createdAt = formatDateTime(deck.version_created_at);
-      const noteParts = [];
-      if (createdAt) noteParts.push(createdAt);
-      if (deck.change_note) noteParts.push(deck.change_note);
-      deckVersionNote.textContent = noteParts.join(" | ");
-      deckVersionNote.hidden = !noteParts.length;
-      restoreVersionButton.hidden = !deck.active_version_id || deck.selected_version_id === deck.active_version_id;
-    }
-
-    function toggleVersionPanel() {
-      versionPanelOpen = !versionPanelOpen;
-      if (currentDeck) renderVersionControls(currentDeck);
+    function applyDeckMode(deck) {
+      const previewMode = isPreviewMode(deck);
+      backLink.href = previewMode && deckId ? `/decks/versions?id=${encodeURIComponent(deckId)}` : "/";
+      backLink.textContent = previewMode ? "Versions" : "Back";
+      versionsDeckButton.href = deckId ? `/decks/versions?id=${encodeURIComponent(deckId)}` : "/decks";
+      editDeckButton.hidden = previewMode;
+      deleteDeckButton.hidden = previewMode;
+      versionsDeckButton.hidden = previewMode;
+      restoreVersionButton.hidden = !previewMode || deck.selected_version_id === deck.active_version_id;
+      if (previewMode) {
+        closeEditPanel();
+      }
+      updateUnsavedQuantityBar();
     }
 
     function deckToText(cards) {
@@ -309,11 +290,11 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     }
 
     function updateUnsavedQuantityBar() {
-      unsavedQuantityBar.hidden = !hasUnsavedQuantityChanges();
+      unsavedQuantityBar.hidden = isPreviewMode() || !hasUnsavedQuantityChanges();
     }
 
     function openEditPanel() {
-      if (!currentDeck) return;
+      if (!currentDeck || isPreviewMode()) return;
       editDeckName.value = currentDeck.name || "";
       editDeckFormat.value = currentDeck.format || "modern";
       editDeckDescription.value = currentDeck.description || "";
@@ -598,6 +579,88 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       return panel;
     }
 
+    function getProducedManaColors(card) {
+      const data = card.card_data || {};
+      const producedMana = Array.isArray(data.produced_mana) ? data.produced_mana : [];
+      const fallbackColors = Array.isArray(data.color_identity) ? data.color_identity : [];
+      const colors = producedMana.length ? producedMana : fallbackColors;
+      return LAND_COLOR_ORDER.filter((color) => colors.includes(color));
+    }
+
+    function getLandColorProduction(cards) {
+      const production = LAND_COLOR_ORDER.map((color) => ({
+        color,
+        label: COLOR_LABELS[color] || color,
+        count: 0,
+        percentage: 0,
+      }));
+      const productionByColor = Object.fromEntries(production.map((item) => [item.color, item]));
+      let landCount = 0;
+
+      (cards || []).forEach((card) => {
+        if ((card.section || "mainboard") !== "mainboard") return;
+        if (getListType(card.card_data?.type_line || "") !== "Land") return;
+
+        const quantity = Number(card.quantity || 0);
+        if (!Number.isFinite(quantity) || quantity <= 0) return;
+
+        landCount += quantity;
+        getProducedManaColors(card).forEach((color) => {
+          productionByColor[color].count += quantity;
+        });
+      });
+
+      production.forEach((item) => {
+        item.percentage = landCount ? Math.round((item.count / landCount) * 100) : 0;
+      });
+
+      return production;
+    }
+
+    function renderLandColorProduction(cards) {
+      const production = getLandColorProduction(cards);
+
+      const panel = document.createElement("section");
+      panel.className = "land-colors-panel";
+      panel.setAttribute("aria-labelledby", "land-colors-heading");
+
+      const heading = document.createElement("h2");
+      heading.id = "land-colors-heading";
+      heading.textContent = "Land Colors";
+      panel.append(heading);
+
+      const bars = document.createElement("div");
+      bars.className = "land-color-bars";
+
+      production.forEach((item) => {
+        const row = document.createElement("div");
+        row.className = "land-color-row";
+
+        const label = document.createElement("span");
+        label.className = "land-color-label";
+        label.textContent = item.label;
+
+        const track = document.createElement("span");
+        track.className = "land-color-track";
+        track.setAttribute("aria-label", `${item.label}: ${item.percentage}% of lands`);
+
+        const fill = document.createElement("span");
+        fill.className = `land-color-fill color-${item.color.toLowerCase()}`;
+        fill.style.width = `${item.percentage}%`;
+        track.append(fill);
+
+        const value = document.createElement("span");
+        value.className = "land-color-value";
+        value.textContent = `${item.percentage}%`;
+
+        row.append(label, track, value);
+        bars.append(row);
+      });
+
+      panel.append(bars);
+      return panel;
+    }
+
     function normalizeCardName(name) {
       return String(name || "").trim().toLowerCase().replace(/\s+/g, " ");
     }
@@ -692,46 +755,50 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
           const quantity = document.createElement("td");
           quantity.className = "card-qty";
 
-          const quantityControl = document.createElement("div");
-          quantityControl.className = "qty-control";
-          quantityControl.addEventListener("click", (event) => {
-            event.stopPropagation();
-          });
-          quantityControl.addEventListener("keydown", (event) => {
-            event.stopPropagation();
-          });
-
-          const quantityButtons = document.createElement("div");
-          quantityButtons.className = "qty-buttons";
-
-          const incrementButton = document.createElement("button");
-          incrementButton.className = "qty-button";
-          incrementButton.type = "button";
-          incrementButton.textContent = "+";
-          incrementButton.setAttribute("aria-label", `Increase quantity for ${data.name || card.name}`);
-          incrementButton.addEventListener("click", (event) => {
-            event.stopPropagation();
-            changeCardQuantity(card, 1);
-          });
-
-          const decrementButton = document.createElement("button");
-          decrementButton.className = "qty-button";
-          decrementButton.type = "button";
-          decrementButton.textContent = "-";
-          decrementButton.disabled = card.quantity <= 0;
-          decrementButton.setAttribute("aria-label", `Decrease quantity for ${data.name || card.name}`);
-          decrementButton.addEventListener("click", (event) => {
-            event.stopPropagation();
-            changeCardQuantity(card, -1);
-          });
-
           const quantityValue = document.createElement("span");
           quantityValue.className = "qty-value";
           quantityValue.textContent = String(card.quantity);
 
-          quantityButtons.append(incrementButton, decrementButton);
-          quantityControl.append(quantityButtons, quantityValue);
-          quantity.append(quantityControl);
+          if (isPreviewMode()) {
+            quantity.append(quantityValue);
+          } else {
+            const quantityControl = document.createElement("div");
+            quantityControl.className = "qty-control";
+            quantityControl.addEventListener("click", (event) => {
+              event.stopPropagation();
+            });
+            quantityControl.addEventListener("keydown", (event) => {
+              event.stopPropagation();
+            });
+
+            const quantityButtons = document.createElement("div");
+            quantityButtons.className = "qty-buttons";
+
+            const incrementButton = document.createElement("button");
+            incrementButton.className = "qty-button";
+            incrementButton.type = "button";
+            incrementButton.textContent = "+";
+            incrementButton.setAttribute("aria-label", `Increase quantity for ${data.name || card.name}`);
+            incrementButton.addEventListener("click", (event) => {
+              event.stopPropagation();
+              changeCardQuantity(card, 1);
+            });
+
+            const decrementButton = document.createElement("button");
+            decrementButton.className = "qty-button";
+            decrementButton.type = "button";
+            decrementButton.textContent = "-";
+            decrementButton.disabled = card.quantity <= 0;
+            decrementButton.setAttribute("aria-label", `Decrease quantity for ${data.name || card.name}`);
+            decrementButton.addEventListener("click", (event) => {
+              event.stopPropagation();
+              changeCardQuantity(card, -1);
+            });
+
+            quantityButtons.append(incrementButton, decrementButton);
+            quantityControl.append(quantityButtons, quantityValue);
+            quantity.append(quantityControl);
+          }
 
           const name = document.createElement("td");
           const nameWrap = document.createElement("span");
@@ -780,7 +847,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         const previewContentEl = document.createElement("div");
         previewContentEl.className = "deck-card-preview-content";
         preview.append(previewContentEl);
-        previewColumn.append(preview, renderManaCurve(cards));
+        previewColumn.append(preview, renderManaCurve(cards), renderLandColorProduction(cards));
         deckSections.append(previewColumn);
         previewContent = previewContentEl;
         renderHoverPreview(defaultPreviewCard, previewContent);
@@ -811,6 +878,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     }
 
     function changeCardQuantity(card, delta) {
+      if (isPreviewMode()) return;
       card.quantity = Math.max(0, Number(card.quantity || 0) + delta);
       renderDeck(currentDeck.cards || []);
       updateUnsavedQuantityBar();
@@ -915,14 +983,13 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         currentDeck = deck;
         initialDeck = cloneDeck(deck);
         renderTitle(deck);
-        renderVersionControls(deck);
+        applyDeckMode(deck);
         renderWarnings(deck.warnings || []);
         renderDeck(deck.cards || []);
         updateUnsavedQuantityBar();
       } catch (error) {
         deckTitle.textContent = "Deck Detail";
         deckMeta.textContent = error instanceof Error ? error.message : "Could not load deck.";
-        deckVersionPanel.hidden = true;
         deckPanel.hidden = true;
       }
     }
@@ -955,7 +1022,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
           throw new Error(data.detail || "Could not save deck.");
         }
 
-        window.location.href = `/decks/view?id=${encodeURIComponent(deckId)}&version_id=${encodeURIComponent(data.active_version_id)}`;
+        window.location.href = `/decks/view?id=${encodeURIComponent(deckId)}`;
       } catch (error) {
         deckMeta.textContent = error instanceof Error ? error.message : "Could not save deck.";
         saveQuantityChangesButton.disabled = false;
@@ -1012,26 +1079,11 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         }
 
         editStatus.textContent = "Saved. Loading new version...";
-        window.location.href = `/decks/view?id=${encodeURIComponent(deckId)}&version_id=${encodeURIComponent(data.active_version_id)}`;
+        window.location.href = `/decks/view?id=${encodeURIComponent(deckId)}`;
       } catch (error) {
         editStatus.textContent = error instanceof Error ? error.message : "Could not save deck.";
         saveDeckButton.disabled = false;
       }
-    }
-
-    async function changeViewedVersion() {
-      const versionId = deckVersionSelect.value;
-      if (!versionId) return;
-
-      const url = new URL(window.location.href);
-      url.searchParams.set("id", deckId);
-      url.searchParams.set("version_id", versionId);
-      window.history.replaceState({}, "", url);
-
-      closeEditPanel();
-      closeInspectPanel();
-      deckMeta.textContent = "Loading deck...";
-      await loadDeck(versionId);
     }
 
     async function restoreViewedVersion() {
@@ -1104,8 +1156,6 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     });
 
     editDeckButton.addEventListener("click", toggleEditPanel);
-    versionsDeckButton.addEventListener("click", toggleVersionPanel);
-    deckVersionSelect.addEventListener("change", changeViewedVersion);
     restoreVersionButton.addEventListener("click", restoreViewedVersion);
     deckEditForm.addEventListener("submit", saveDeck);
     cancelEditButton.addEventListener("click", closeEditPanel);

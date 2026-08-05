@@ -119,6 +119,14 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
           link.append(deckInfo);
         }
 
+        const actions = document.createElement("span");
+        actions.className = "deck-list-actions";
+
+        const versionsLink = document.createElement("a");
+        versionsLink.className = "action-button version-button hollow-button deck-list-delete";
+        versionsLink.href = `/decks/versions?id=${encodeURIComponent(deck.id)}`;
+        versionsLink.textContent = "Versions";
+
         const deleteButton = document.createElement("button");
         deleteButton.className = "action-button danger-button hollow-button deck-list-delete";
         deleteButton.type = "button";
@@ -129,7 +137,8 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
           deleteDeck(deck, item, deleteButton);
         });
 
-        item.append(link, deleteButton);
+        actions.append(versionsLink, deleteButton);
+        item.append(link, actions);
         allDecksList.append(item);
       });
     }

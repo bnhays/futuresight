@@ -10,7 +10,9 @@ The client lives in `apps/web` and is built with Astro. The pages are rendered a
 
 - `/`: deck import page with deck metadata fields, decklist input, recent deck links, and random card art from saved decks.
 - `/decks`: saved deck list with color identity, optional thumbnail card, description, updated time, and delete controls.
-- `/decks/view?id={deck_id}`: deck detail page with grouped card tables, Versions button, version selector, restore action, card inspection panel, edit form, quick quantity controls, save/discard controls, and delete action.
+- `/decks/versions?id={deck_id}`: deck version list page with saved versions shown in the same list style as saved decks, plus metadata editing for version names and change notes.
+- `/decks/view?id={deck_id}`: active deck detail page with grouped card tables, Versions button, card inspection panel, edit form, quick quantity controls, save/discard controls, and delete action.
+- `/decks/view?id={deck_id}&version_id={version_id}`: preview-only deck version detail page with grouped card tables, card inspection panel, and restore action for historical versions.
 
 The client reads `PUBLIC_API_URL` to determine the API base URL and defaults to `http://localhost:8000`.
 
@@ -41,6 +43,7 @@ Current API behavior is centered on deck management.
 - `GET /decks`: returns deck summaries sorted by most recently updated, with optional `limit`.
 - `GET /decks/{deck_id}`: returns the active deck version with card data, version history summaries, warnings, import metrics, and raw decklist text. Optional `version_id` or `version` query parameters select an older version.
 - `GET /decks/{deck_id}/versions`: returns lightweight version history summaries for the deck.
+- `PATCH /decks/{deck_id}/versions/{version_id}`: updates version metadata such as version name and change note.
 - `POST /decks/{deck_id}/versions/{version_id}/restore`: duplicates the selected historical version as a new latest version.
 - `PUT /decks/{deck_id}`: reparses and resolves the submitted decklist, updates deck metadata, appends a new active deck version, and returns the updated deck.
 - `DELETE /decks/{deck_id}`: deletes the deck and its associated deck version records.

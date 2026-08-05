@@ -11,6 +11,7 @@ from app.models import (
     DeckDetail,
     DeckImportMetrics,
     DeckSummary,
+    DeckVersionCardChange,
     DeckVersionSummary,
     ImportedCardData,
     ParsedDeckCard,
@@ -32,6 +33,11 @@ class DeckImportRequest(BaseModel):
 
 
 class DeckVersionRestoreRequest(BaseModel):
+    version_name: str | None = None
+    change_note: str | None = None
+
+
+class DeckVersionMetadataRequest(BaseModel):
     version_name: str | None = None
     change_note: str | None = None
 
@@ -122,7 +128,11 @@ def serialize_deck_summary(deck: dict, cards: list[dict] | None = None) -> DeckS
     )
 
 
-def serialize_deck_version_summary(version: dict, active_version_id: ObjectId | None = None) -> DeckVersionSummary:
+def serialize_deck_version_summary(
+    version: dict,
+    active_version_id: ObjectId | None = None,
+    changes: list[DeckVersionCardChange] | None = None,
+) -> DeckVersionSummary:
     return DeckVersionSummary(
         id=str(version["_id"]),
         version_number=version.get("version_number") or 1,
@@ -130,47 +140,101 @@ def serialize_deck_version_summary(version: dict, active_version_id: ObjectId | 
         change_note=version.get("change_note"),
         created_at=serialize_datetime(version.get("created_at")),
         is_active=version.get("_id") == active_version_id,
+        changes=changes or [],
     )
 
 
 def get_card_snapshot(cards: list[ParsedDeckCard] | list[dict]) -> list[dict[str, int | str]]:
-    snapshot = []
+    snapshot: dict[tuple[str, str], dict[str, int | str]] = {}
     for card in cards:
         if isinstance(card, ParsedDeckCard):
-            snapshot.append(
-                {
-                    "quantity": card.quantity,
-                    "name": normalize_name_key(card.name),
-                    "section": card.section or "mainboard",
-                }
-            )
+            quantity = card.quantity
+            name = card.name
+            section = card.section or "mainboard"
         else:
-            snapshot.append(
-                {
-                    "quantity": card.get("quantity"),
-                    "name": normalize_name_key(card.get("name") or ""),
-                    "section": card.get("section") or "mainboard",
-                }
-            )
+            quantity = card.get("quantity") or 0
+            name = card.get("name") or ""
+            section = card.get("section") or "mainboard"
+
+        key = (section, normalize_name_key(name))
+        existing = snapshot.setdefault(
+            key,
+            {
+                "quantity": 0,
+                "name": key[1],
+                "section": section,
+            },
+        )
+        existing["quantity"] = int(existing["quantity"]) + int(quantity)
+
+    return [snapshot[key] for key in sorted(snapshot)]
+
+
+def decklist_matches_submission(version: dict, cards: list[ParsedDeckCard]) -> bool:
+    return get_card_snapshot(version.get("cards", [])) == get_card_snapshot(cards)
+
+
+def get_card_change_snapshot(cards: list[ParsedDeckCard] | list[dict]) -> dict[tuple[str, str], dict[str, int | str]]:
+    snapshot: dict[tuple[str, str], dict[str, int | str]] = {}
+    for card in cards:
+        if isinstance(card, ParsedDeckCard):
+            quantity = card.quantity
+            name = card.name
+            section = card.section or "mainboard"
+        else:
+            quantity = card.get("quantity") or 0
+            name = card.get("name") or ""
+            section = card.get("section") or "mainboard"
+
+        key = (section, normalize_name_key(name))
+        existing = snapshot.setdefault(
+            key,
+            {
+                "quantity": 0,
+                "name": name,
+                "section": section,
+            },
+        )
+        existing["quantity"] = int(existing["quantity"]) + int(quantity)
 
     return snapshot
 
 
-def version_matches_submission(
-    version: dict,
-    deck_name: str,
-    deck_format: str,
-    deck_description: str | None,
-    thumbnail_card_name: str | None,
-    cards: list[ParsedDeckCard],
-) -> bool:
-    return (
-        (version.get("name") or "Untitled Deck") == deck_name
-        and (version.get("format") or "modern") == deck_format
-        and version.get("description") == deck_description
-        and normalize_thumbnail_card_name(version.get("thumbnail_card_name")) == thumbnail_card_name
-        and get_card_snapshot(version.get("cards", [])) == get_card_snapshot(cards)
-    )
+def get_version_card_changes(
+    previous_cards: list[ParsedDeckCard] | list[dict],
+    current_cards: list[ParsedDeckCard] | list[dict],
+) -> list[DeckVersionCardChange]:
+    previous_snapshot = get_card_change_snapshot(previous_cards)
+    current_snapshot = get_card_change_snapshot(current_cards)
+    changes: list[DeckVersionCardChange] = []
+
+    for key in sorted(set(previous_snapshot) | set(current_snapshot)):
+        previous = previous_snapshot.get(key)
+        current = current_snapshot.get(key)
+        previous_quantity = int(previous["quantity"]) if previous else 0
+        quantity = int(current["quantity"]) if current else 0
+        if previous_quantity == quantity:
+            continue
+
+        if previous_quantity <= 0:
+            change_type = "added"
+        elif quantity <= 0:
+            change_type = "removed"
+        else:
+            change_type = "modified"
+
+        change_source = current or previous or {}
+        changes.append(
+            DeckVersionCardChange(
+                change_type=change_type,
+                name=str(change_source.get("name") or ""),
+                section=str(change_source.get("section") or "mainboard"),
+                previous_quantity=previous_quantity,
+                quantity=quantity,
+            )
+        )
+
+    return changes
 
 
 async def list_deck_version_summaries(
@@ -178,10 +242,18 @@ async def list_deck_version_summaries(
     deck_id: ObjectId,
     active_version_id: ObjectId | None = None,
 ) -> list[DeckVersionSummary]:
-    cursor = db.deck_versions.find({"deck_id": deck_id}).sort("version_number", -1)
+    cursor = db.deck_versions.find({"deck_id": deck_id}).sort("version_number", 1)
+    versions = [version async for version in cursor]
+    changes_by_id: dict[ObjectId, list[DeckVersionCardChange]] = {}
+    previous_cards: list[dict] = []
+
+    for version in versions:
+        changes_by_id[version["_id"]] = get_version_card_changes(previous_cards, version.get("cards", []))
+        previous_cards = version.get("cards", [])
+
     return [
-        serialize_deck_version_summary(version, active_version_id)
-        async for version in cursor
+        serialize_deck_version_summary(version, active_version_id, changes_by_id.get(version["_id"], []))
+        for version in reversed(versions)
     ]
 
 
@@ -290,6 +362,7 @@ def cache_document_to_card_data(document: dict) -> ImportedCardData:
         oracle_text=document.get("oracle_text", ""),
         colors=document.get("colors", []),
         color_identity=document.get("color_identity", []),
+        produced_mana=document.get("produced_mana", []),
         legalities=document.get("legalities", {}),
         image_uri=document.get("image_uri"),
         scryfall_uri=document.get("scryfall_uri"),
@@ -581,6 +654,32 @@ async def restore_deck_version(
     )
 
 
+@router.patch("/{deck_id}/versions/{version_id}", response_model=DeckVersionSummary)
+async def update_deck_version_metadata(
+    deck_id: str,
+    version_id: str,
+    payload: DeckVersionMetadataRequest,
+) -> DeckVersionSummary:
+    db = get_database()
+    deck_object_id = parse_object_id(deck_id)
+    deck = await db.decks.find_one({"_id": deck_object_id})
+    if not deck:
+        raise HTTPException(status_code=404, detail="Deck not found.")
+
+    version = await get_selected_version(db, deck, version_id=version_id)
+    updates = {
+        "version_name": normalize_version_name(payload.version_name),
+        "change_note": normalize_change_note(payload.change_note),
+    }
+    await db.deck_versions.update_one(
+        {"_id": version["_id"], "deck_id": deck_object_id},
+        {"$set": updates},
+    )
+
+    version.update(updates)
+    return serialize_deck_version_summary(version, deck.get("active_version_id"))
+
+
 @router.get("/{deck_id}", response_model=DeckDetail)
 async def get_deck(
     deck_id: str,
@@ -612,28 +711,48 @@ async def update_deck(deck_id: str, payload: DeckImportRequest) -> DeckUpdateRes
     deck_description = normalize_description(payload.description)
     thumbnail_card_name = normalize_thumbnail_card_name(payload.thumbnail_card_name)
 
-    comparison_version = await get_version_for_noop_check(db, deck, payload.base_version_id)
-    if comparison_version and version_matches_submission(
-        comparison_version,
-        deck_name,
-        deck_format,
-        deck_description,
-        thumbnail_card_name,
-        cards,
-    ):
+    active_version = await db.deck_versions.find_one({"_id": deck["active_version_id"]}) if deck.get("active_version_id") else None
+    comparison_version = active_version or await get_version_for_noop_check(db, deck, payload.base_version_id)
+    if comparison_version and decklist_matches_submission(comparison_version, cards):
+        version_to_update = comparison_version
+        metadata_updates = {
+            "name": deck_name,
+            "format": deck_format,
+            "description": deck_description,
+            "thumbnail_card_name": thumbnail_card_name,
+            "raw_decklist": payload.decklist,
+        }
+        await db.deck_versions.update_one(
+            {"_id": version_to_update["_id"], "deck_id": deck_object_id},
+            {"$set": metadata_updates},
+        )
+        await db.decks.update_one(
+            {"_id": deck_object_id},
+            {
+                "$set": {
+                    "name": deck_name,
+                    "format": deck_format,
+                    "description": deck_description,
+                    "thumbnail_card_name": thumbnail_card_name,
+                    "updated_at": now,
+                }
+            },
+        )
+
+        version_to_update.update(metadata_updates)
         return DeckUpdateResponse(
             id=str(deck_object_id),
-            active_version_id=str(comparison_version["_id"]),
-            version_number=comparison_version.get("version_number") or 1,
-            version_name=comparison_version.get("version_name"),
-            change_note=comparison_version.get("change_note"),
-            name=comparison_version.get("name") or deck_name,
-            format=comparison_version.get("format") or deck_format,
-            description=comparison_version.get("description"),
-            thumbnail_card_name=comparison_version.get("thumbnail_card_name"),
-            cards=[ParsedDeckCard(**card) for card in comparison_version.get("cards", [])],
-            warnings=comparison_version.get("warnings", []),
-            import_metrics=DeckImportMetrics(**comparison_version.get("import_metrics", {})),
+            active_version_id=str(version_to_update["_id"]),
+            version_number=version_to_update.get("version_number") or 1,
+            version_name=version_to_update.get("version_name"),
+            change_note=version_to_update.get("change_note"),
+            name=deck_name,
+            format=deck_format,
+            description=deck_description,
+            thumbnail_card_name=thumbnail_card_name,
+            cards=[ParsedDeckCard(**card) for card in version_to_update.get("cards", [])],
+            warnings=version_to_update.get("warnings", []),
+            import_metrics=DeckImportMetrics(**version_to_update.get("import_metrics", {})),
         )
 
     version_number = await get_next_version_number(db, deck_object_id)

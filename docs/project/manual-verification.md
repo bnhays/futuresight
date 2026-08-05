@@ -9,7 +9,9 @@ Manual verification was performed against the Docker-based application build.
 - Reviewed imported deck detail pages.
 - Edited deck details, including deck metadata and decklist content.
 - Saved deck edits and entered prompted change notes.
-- Opened the Versions panel and selected older deck versions from the deck detail view.
+- Opened the Versions page and selected older deck versions from the version list.
+- Edited version names and change notes from the Versions page.
+- Confirmed historical version detail pages were preview-only.
 - Tried saving an unchanged edit form.
 - Restored an older version and confirmed it appeared as the newest version.
 - Used quick card-quantity update controls from the deck detail view.
@@ -24,7 +26,10 @@ Manual verification was performed against the Docker-based application build.
 - Deck metadata and decklist edits should save and appear after returning to the deck detail view.
 - Each changed deck edit should append a new automatically numbered version while preserving previous decklists.
 - Saving an unchanged edit form should not create a new version.
-- The deck detail Versions panel should load historical card lists and metadata snapshots.
+- The deck detail Versions button should open a version list page.
+- Version names and change notes should save from the version list without changing deck contents.
+- Version list items should open preview-only deck detail pages.
+- Historical preview pages should not allow editing or quick quantity updates.
 - Restoring an older version should duplicate it as a new latest version.
 - Quick quantity updates should mark the deck as changed and allow the updated decklist to be saved.
 - Deleted decks should be removed from the saved deck list and should no longer open in the detail view.
