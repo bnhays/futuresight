@@ -1045,25 +1045,28 @@ button:disabled:focus {
   position: relative;
   display: inline-flex;
   align-items: center;
-  justify-content: start;
+  justify-content: center;
   min-width: 1.4rem;
 }
 
 .qty-buttons {
   position: absolute;
-  bottom: calc(100% - 0.12rem);
+  top: 50%;
   left: 50%;
   z-index: 2;
   display: flex;
-  gap: 0.15rem;
+  justify-content: space-between;
+  width: 3.7rem;
   opacity: 0;
-  transform: translateX(-50%);
+  pointer-events: none;
+  transform: translate(-50%, -50%);
   transition: opacity 0.15s ease;
 }
 
 .card-row:hover .qty-buttons,
 .card-qty:focus-within .qty-buttons {
   opacity: 1;
+  pointer-events: auto;
 }
 
 .qty-button {
