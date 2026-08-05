@@ -54,6 +54,14 @@ class DeckVersionSummary(BaseModel):
     changes: list[DeckVersionCardChange] = Field(default_factory=list)
 
 
+class MatchupHistoryEntry(BaseModel):
+    id: str
+    opponent_deck: str
+    tournament_name: str
+    outcome: str
+    created_at: str | None = None
+
+
 class Matchup(BaseModel):
     opponent: str | None = None
     opponent_deck: str | DeckSummary
@@ -83,6 +91,7 @@ class DeckDetail(DeckSummary):
     version_created_at: str | None = None
     versions: list[DeckVersionSummary] = Field(default_factory=list)
     cards: list[ParsedDeckCard] = Field(default_factory=list)
+    matchups: list[MatchupHistoryEntry] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
     import_metrics: DeckImportMetrics | None = None
     raw_decklist: str | None = None

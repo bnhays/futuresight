@@ -133,6 +133,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     let currentDeck = null;
     let initialDeck = null;
     let inspectedCardKey = null;
+    let matchupHistoryShowingAll = false;
 
     function formatDateTime(value) {
       if (!value) return "";
@@ -661,6 +662,230 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       return panel;
     }
 
+    function currentVersionId() {
+      return currentDeck?.selected_version_id || currentDeck?.active_version_id || "";
+    }
+
+    function matchupDate(value) {
+      if (!value) return "";
+      const date = new Date(value);
+      if (Number.isNaN(date.getTime())) return "";
+      return date.toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+        year: "numeric",
+      });
+    }
+
+    function renderMatchupCard(matchup) {
+      const card = document.createElement("article");
+      card.className = "matchup-card";
+
+      const opponent = document.createElement("h3");
+      opponent.textContent = matchup.opponent_deck || "Unknown Deck";
+
+      const tournament = document.createElement("p");
+      tournament.className = "matchup-tournament";
+      tournament.textContent = matchup.tournament_name || "Unknown Tournament";
+
+      const meta = document.createElement("p");
+      meta.className = "matchup-meta";
+
+      const outcome = document.createElement("span");
+      outcome.className = "matchup-outcome";
+      outcome.textContent = matchup.outcome || "";
+
+      const playedAt = document.createElement("span");
+      playedAt.textContent = matchupDate(matchup.created_at);
+      playedAt.hidden = !playedAt.textContent;
+
+      meta.append(outcome, playedAt);
+      card.append(opponent, tournament, meta);
+      return card;
+    }
+
+    async function saveMatchup(event, form, status, submitButton) {
+      event.preventDefault();
+      if (!deckId || !currentVersionId()) return;
+
+      const formData = new FormData(form);
+      const payload = {
+        opponent_deck: String(formData.get("opponent_deck") || "").trim(),
+        tournament_name: String(formData.get("tournament_name") || "").trim(),
+        outcome: String(formData.get("outcome") || "").trim(),
+      };
+
+      if (!payload.opponent_deck || !payload.tournament_name || !payload.outcome) {
+        status.textContent = "Fill out all matchup fields.";
+        return;
+      }
+
+      submitButton.disabled = true;
+      status.textContent = "Saving...";
+
+      try {
+        const response = await fetch(
+          `${API_URL}/decks/${deckId}/versions/${currentVersionId()}/matchups`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          },
+        );
+        const matchup = await response.json();
+        if (!response.ok) {
+          throw new Error(matchup.detail || "Could not save matchup.");
+        }
+
+        currentDeck.matchups = [matchup, ...(currentDeck.matchups || [])];
+        initialDeck = cloneDeck(currentDeck);
+        matchupHistoryShowingAll = false;
+        renderDeck(currentDeck.cards || []);
+      } catch (error) {
+        status.textContent = error instanceof Error ? error.message : "Could not save matchup.";
+        submitButton.disabled = false;
+      }
+    }
+
+    function renderMatchupForm(section, formContainer, logButton) {
+      formContainer.innerHTML = "";
+      formContainer.hidden = false;
+      logButton.hidden = true;
+
+      const form = document.createElement("form");
+      form.className = "matchup-form";
+
+      const opponentLabel = document.createElement("label");
+      const opponentText = document.createElement("span");
+      opponentText.textContent = "Opponent Deck";
+      const opponentInput = document.createElement("input");
+      opponentInput.name = "opponent_deck";
+      opponentInput.type = "text";
+      opponentInput.maxLength = 80;
+      opponentInput.autocomplete = "off";
+      opponentLabel.append(opponentText, opponentInput);
+
+      const tournamentLabel = document.createElement("label");
+      const tournamentText = document.createElement("span");
+      tournamentText.textContent = "Tournament";
+      const tournamentInput = document.createElement("input");
+      tournamentInput.name = "tournament_name";
+      tournamentInput.type = "text";
+      tournamentInput.maxLength = 120;
+      tournamentInput.autocomplete = "off";
+      tournamentLabel.append(tournamentText, tournamentInput);
+
+      const outcomeLabel = document.createElement("label");
+      const outcomeText = document.createElement("span");
+      outcomeText.textContent = "Outcome";
+      const outcomeInput = document.createElement("input");
+      outcomeInput.name = "outcome";
+      outcomeInput.type = "text";
+      outcomeInput.maxLength = 20;
+      outcomeInput.placeholder = "3-2";
+      outcomeInput.autocomplete = "off";
+      outcomeLabel.append(outcomeText, outcomeInput);
+
+      const actions = document.createElement("div");
+      actions.className = "matchup-form-actions";
+
+      const submitButton = document.createElement("button");
+      submitButton.className = "action-button primary-button hollow-button";
+      submitButton.type = "submit";
+      submitButton.textContent = "Save";
+
+      const cancelButton = document.createElement("button");
+      cancelButton.className = "action-button muted hollow-button";
+      cancelButton.type = "button";
+      cancelButton.textContent = "Cancel";
+
+      const status = document.createElement("span");
+      status.className = "matchup-status";
+      status.setAttribute("role", "status");
+      status.setAttribute("aria-live", "polite");
+
+      cancelButton.addEventListener("click", () => {
+        formContainer.hidden = true;
+        formContainer.innerHTML = "";
+        logButton.hidden = false;
+      });
+
+      actions.append(submitButton, cancelButton, status);
+      form.append(opponentLabel, tournamentLabel, outcomeLabel, actions);
+      form.addEventListener("submit", (event) => saveMatchup(event, form, status, submitButton));
+
+      formContainer.append(form);
+      section.append(formContainer);
+      opponentInput.focus();
+    }
+
+    function renderMatchupHistory() {
+      const section = document.createElement("section");
+      section.className = "matchup-history-panel";
+
+      const header = document.createElement("div");
+      header.className = "panel-heading matchup-history-heading";
+
+      const headingWrap = document.createElement("div");
+      const heading = document.createElement("h2");
+      heading.textContent = "Matchup History";
+      const meta = document.createElement("p");
+      meta.className = "matchup-history-meta";
+      const matchups = currentDeck?.matchups || [];
+      meta.textContent = `${matchups.length} logged ${matchups.length === 1 ? "matchup" : "matchups"} for this version`;
+      headingWrap.append(heading, meta);
+
+      const actions = document.createElement("div");
+      actions.className = "deck-actions";
+
+      const seeAllButton = document.createElement("button");
+      seeAllButton.className = "action-button muted hollow-button";
+      seeAllButton.type = "button";
+      seeAllButton.textContent = matchupHistoryShowingAll ? "Show Recent" : "See All";
+      seeAllButton.hidden = matchups.length <= 5;
+      seeAllButton.addEventListener("click", () => {
+        matchupHistoryShowingAll = !matchupHistoryShowingAll;
+        renderDeck(currentDeck.cards || []);
+      });
+
+      const logButton = document.createElement("button");
+      logButton.className = "action-button primary-button hollow-button";
+      logButton.type = "button";
+      logButton.textContent = "Log New";
+
+      actions.append(seeAllButton, logButton);
+      header.append(headingWrap, actions);
+      section.append(header);
+
+      const grid = document.createElement("div");
+      grid.className = "matchup-grid";
+
+      const visibleMatchups = matchupHistoryShowingAll ? matchups : matchups.slice(0, 5);
+      if (visibleMatchups.length) {
+        visibleMatchups.forEach((matchup) => {
+          grid.append(renderMatchupCard(matchup));
+        });
+      } else {
+        const empty = document.createElement("p");
+        empty.className = "empty-state matchup-empty";
+        empty.textContent = "No matchups logged for this version.";
+        grid.append(empty);
+      }
+
+      section.append(grid);
+
+      const formContainer = document.createElement("div");
+      formContainer.className = "matchup-form-container";
+      formContainer.hidden = true;
+
+      logButton.addEventListener("click", () => {
+        renderMatchupForm(section, formContainer, logButton);
+      });
+
+      section.append(formContainer);
+      return section;
+    }
+
     function normalizeCardName(name) {
       return String(name || "").trim().toLowerCase().replace(/\s+/g, " ");
     }
@@ -875,6 +1100,8 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 
       const sideboardSection = renderDeckSection("sideboard", groups.sideboard || [], sectionLabel("sideboard"));
       if (sideboardSection) deckSections.append(sideboardSection);
+
+      deckSections.append(renderMatchupHistory());
     }
 
     function changeCardQuantity(card, delta) {

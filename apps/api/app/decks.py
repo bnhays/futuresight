@@ -14,6 +14,7 @@ from app.models import (
     DeckVersionCardChange,
     DeckVersionSummary,
     ImportedCardData,
+    MatchupHistoryEntry,
     ParsedDeckCard,
 )
 from app.scryfall import find_card_by_name, find_cards_by_names
@@ -40,6 +41,12 @@ class DeckVersionRestoreRequest(BaseModel):
 class DeckVersionMetadataRequest(BaseModel):
     version_name: str | None = None
     change_note: str | None = None
+
+
+class MatchupHistoryRequest(BaseModel):
+    opponent_deck: str = Field(min_length=1, max_length=80)
+    tournament_name: str = Field(min_length=1, max_length=120)
+    outcome: str = Field(min_length=1, max_length=20)
 
 
 class DeckImportResponse(BaseModel):
@@ -142,6 +149,31 @@ def serialize_deck_version_summary(
         is_active=version.get("_id") == active_version_id,
         changes=changes or [],
     )
+
+
+def normalize_matchup_text(value: str, max_length: int) -> str:
+    return " ".join(value.split())[:max_length]
+
+
+def serialize_matchup_history_entry(matchup: dict) -> MatchupHistoryEntry:
+    return MatchupHistoryEntry(
+        id=str(matchup.get("id") or matchup.get("_id") or ObjectId()),
+        opponent_deck=matchup.get("opponent_deck") or "Unknown Deck",
+        tournament_name=matchup.get("tournament_name") or "Unknown Tournament",
+        outcome=matchup.get("outcome") or "",
+        created_at=serialize_datetime(matchup.get("created_at")),
+    )
+
+
+def serialize_matchup_history(matchups: list[dict]) -> list[MatchupHistoryEntry]:
+    return [
+        serialize_matchup_history_entry(matchup)
+        for matchup in sorted(
+            matchups,
+            key=lambda item: item.get("created_at") or datetime.min,
+            reverse=True,
+        )
+    ]
 
 
 def get_card_snapshot(cards: list[ParsedDeckCard] | list[dict]) -> list[dict[str, int | str]]:
@@ -330,6 +362,7 @@ async def serialize_deck_detail(db, deck: dict, version: dict) -> DeckDetail:
         version_created_at=serialize_datetime(version.get("created_at")),
         versions=versions,
         cards=[ParsedDeckCard(**card) for card in cards],
+        matchups=serialize_matchup_history(version.get("matchups", [])),
         warnings=version.get("warnings", []),
         import_metrics=DeckImportMetrics(**version.get("import_metrics", {})),
         raw_decklist=version.get("raw_decklist"),
@@ -522,6 +555,7 @@ async def import_deck(payload: DeckImportRequest) -> DeckImportResponse:
             "description": deck_description,
             "thumbnail_card_name": thumbnail_card_name,
             "cards": [card.model_dump() for card in cards],
+            "matchups": [],
             "warnings": warnings,
             "import_metrics": import_metrics.model_dump(),
             "raw_decklist": payload.decklist,
@@ -614,6 +648,7 @@ async def restore_deck_version(
         "description": source_version.get("description"),
         "thumbnail_card_name": source_version.get("thumbnail_card_name"),
         "cards": source_version.get("cards", []),
+        "matchups": [],
         "warnings": source_version.get("warnings", []),
         "import_metrics": source_version.get("import_metrics", {}),
         "raw_decklist": source_version.get("raw_decklist"),
@@ -678,6 +713,54 @@ async def update_deck_version_metadata(
 
     version.update(updates)
     return serialize_deck_version_summary(version, deck.get("active_version_id"))
+
+
+@router.get("/{deck_id}/versions/{version_id}/matchups", response_model=list[MatchupHistoryEntry])
+async def list_version_matchups(deck_id: str, version_id: str) -> list[MatchupHistoryEntry]:
+    db = get_database()
+    deck_object_id = parse_object_id(deck_id)
+    deck = await db.decks.find_one({"_id": deck_object_id})
+    if not deck:
+        raise HTTPException(status_code=404, detail="Deck not found.")
+
+    version = await get_selected_version(db, deck, version_id=version_id)
+    return serialize_matchup_history(version.get("matchups", []))
+
+
+@router.post("/{deck_id}/versions/{version_id}/matchups", response_model=MatchupHistoryEntry)
+async def create_version_matchup(
+    deck_id: str,
+    version_id: str,
+    payload: MatchupHistoryRequest,
+) -> MatchupHistoryEntry:
+    db = get_database()
+    deck_object_id = parse_object_id(deck_id)
+    deck = await db.decks.find_one({"_id": deck_object_id})
+    if not deck:
+        raise HTTPException(status_code=404, detail="Deck not found.")
+
+    version = await get_selected_version(db, deck, version_id=version_id)
+    now = utc_now()
+    opponent_deck = normalize_matchup_text(payload.opponent_deck, 80)
+    tournament_name = normalize_matchup_text(payload.tournament_name, 120)
+    outcome = normalize_matchup_text(payload.outcome, 20)
+    if not opponent_deck or not tournament_name or not outcome:
+        raise HTTPException(status_code=400, detail="Matchup fields cannot be blank.")
+
+    matchup = {
+        "id": ObjectId(),
+        "opponent_deck": opponent_deck,
+        "tournament_name": tournament_name,
+        "outcome": outcome,
+        "created_at": now,
+    }
+
+    await db.deck_versions.update_one(
+        {"_id": version["_id"], "deck_id": deck_object_id},
+        {"$push": {"matchups": matchup}},
+    )
+
+    return serialize_matchup_history_entry(matchup)
 
 
 @router.get("/{deck_id}", response_model=DeckDetail)
@@ -769,6 +852,7 @@ async def update_deck(deck_id: str, payload: DeckImportRequest) -> DeckUpdateRes
         "description": deck_description,
         "thumbnail_card_name": thumbnail_card_name,
         "cards": [card.model_dump() for card in cards],
+        "matchups": [],
         "warnings": warnings,
         "import_metrics": import_metrics.model_dump(),
         "raw_decklist": payload.decklist,
