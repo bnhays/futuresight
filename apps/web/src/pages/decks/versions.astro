@@ -9,7 +9,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         <h1 id="versions-title">Deck Versions</h1>
         <p id="versions-meta" class="deck-detail-description">Loading versions...</p>
       </div>
-      <a id="back-to-deck" class="button-link action-button muted" href="/decks">Back</a>
+      <a id="back-to-deck" class="button-link action-button muted compact compact-action" href="/decks">Back</a>
     </div>
 
     <div id="deck-versions-list" class="recent-decks-list" aria-live="polite">
@@ -100,12 +100,12 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       actions.className = "deck-list-actions";
 
       const saveButton = document.createElement("button");
-      saveButton.className = "action-button primary-button hollow-button";
+      saveButton.className = "action-button primary-button hollow-button compact-action";
       saveButton.type = "submit";
       saveButton.textContent = "Save";
 
       const cancelButton = document.createElement("button");
-      cancelButton.className = "action-button muted hollow-button";
+      cancelButton.className = "action-button muted hollow-button compact-action";
       cancelButton.type = "button";
       cancelButton.textContent = "Cancel";
       cancelButton.addEventListener("click", () => {
@@ -207,7 +207,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       const summary = renderVersionSummary(version);
 
       const summaryButton = document.createElement("button");
-      summaryButton.className = "action-button primary-button hollow-button deck-list-delete version-summary-button";
+      summaryButton.className = "action-button primary-button hollow-button deck-list-delete version-summary-button compact-action";
       summaryButton.type = "button";
       summaryButton.textContent = "Summary";
       summaryButton.setAttribute("aria-expanded", "false");
@@ -221,7 +221,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       });
 
       const editButton = document.createElement("button");
-      editButton.className = "action-button success-button hollow-button deck-list-delete";
+      editButton.className = "action-button success-button hollow-button deck-list-delete compact-action";
       editButton.type = "button";
       editButton.textContent = "Edit";
       editButton.addEventListener("click", (event) => {

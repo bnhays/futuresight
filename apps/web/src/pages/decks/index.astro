@@ -6,7 +6,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
   <section class="decks-shell">
     <div class="page-heading">
       <h1>Decks</h1>
-      <a class="button-link action-button muted" href="/">Back</a>
+      <a class="button-link action-button muted compact compact-action" href="/">Back</a>
     </div>
 
     <div id="all-decks-list" class="recent-decks-list" aria-live="polite">
@@ -123,12 +123,12 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         actions.className = "deck-list-actions";
 
         const versionsLink = document.createElement("a");
-        versionsLink.className = "action-button version-button hollow-button deck-list-delete";
+        versionsLink.className = "action-button version-button hollow-button deck-list-delete compact-action";
         versionsLink.href = `/decks/versions?id=${encodeURIComponent(deck.id)}`;
         versionsLink.textContent = "Versions";
 
         const deleteButton = document.createElement("button");
-        deleteButton.className = "action-button danger-button hollow-button deck-list-delete";
+        deleteButton.className = "action-button danger-button hollow-button deck-list-delete compact-action";
         deleteButton.type = "button";
         deleteButton.textContent = "Delete";
         deleteButton.addEventListener("click", (event) => {
