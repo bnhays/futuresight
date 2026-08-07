@@ -87,7 +87,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
   </section>
 
   <script>
-    import { getListType, renderLandColorProduction, renderManaCurve } from "../../scripts/deck-stats.js";
+    import { getListType, renderCardTypeBreakdown, renderLandColorProduction, renderManaCurve } from "../../scripts/deck-stats.js";
     import { renderHoverPreview, showInspectCard } from "../../scripts/deck-inspect.js";
     import { renderMatchupHistory as renderDeckMatchupHistory } from "../../scripts/deck-matchups.js";
     import { cloneDeck, deckToText, groupBySection, normalizeText } from "../../scripts/deck-text.js";
@@ -554,6 +554,13 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
           if (sectionEl) mainboardColumns[index % mainboardColumns.length].append(sectionEl);
         });
         deckSections.append(mainboardGrid);
+        const cardTypeBreakdown = renderCardTypeBreakdown(currentDeck?.stats?.card_type_breakdown);
+        const targetColumn = mainboardColumns.reduce((shorterColumn, column) => (
+          column.getBoundingClientRect().height < shorterColumn.getBoundingClientRect().height ? column : shorterColumn
+        ), mainboardColumns[0]);
+        targetColumn.append(cardTypeBreakdown);
+      } else {
+        deckSections.append(renderCardTypeBreakdown(currentDeck?.stats?.card_type_breakdown));
       }
 
       const sideboardSection = renderDeckSection("sideboard", backendGroups.sideboard || [], sectionLabel("sideboard"));

@@ -1,3 +1,5 @@
+import { renderManaCost } from "./mana.js";
+
 export function getListType(typeLine) {
   const cardTypes = String(typeLine || "").split("-")[0] || "";
   const priorities = ["Creature", "Land", "Planeswalker", "Artifact", "Enchantment", "Instant", "Sorcery"];
@@ -65,7 +67,9 @@ export function renderLandColorProduction(production) {
 
     const label = document.createElement("span");
     label.className = "land-color-label";
-    label.textContent = item.label;
+    label.setAttribute("aria-label", item.label);
+    label.title = item.label;
+    label.append(renderManaCost(`{${item.color}}`));
 
     const track = document.createElement("span");
     track.className = "land-color-track";
@@ -85,5 +89,68 @@ export function renderLandColorProduction(production) {
   });
 
   panel.append(bars);
+  return panel;
+}
+
+export function renderCardTypeBreakdown(breakdown) {
+  const sections = Array.isArray(breakdown) ? breakdown : [];
+
+  const panel = document.createElement("section");
+  panel.className = "card-type-breakdown-panel";
+  panel.setAttribute("aria-labelledby", "card-type-breakdown-heading");
+
+  const heading = document.createElement("h2");
+  heading.id = "card-type-breakdown-heading";
+  heading.textContent = "Card Types";
+  panel.append(heading);
+
+  const groups = document.createElement("div");
+  groups.className = "card-type-breakdown-groups";
+
+  sections.forEach((section) => {
+    const group = document.createElement("div");
+    group.className = "card-type-breakdown-group";
+
+    const summary = document.createElement("div");
+    summary.className = "card-type-breakdown-summary";
+
+    const label = document.createElement("span");
+    label.textContent = section.label || "Cards";
+
+    const total = document.createElement("span");
+    total.textContent = String(section.total || 0);
+
+    summary.append(label, total);
+    group.append(summary);
+
+    const rows = document.createElement("div");
+    rows.className = "card-type-breakdown-rows";
+
+    (section.types || []).forEach((item) => {
+      const row = document.createElement("div");
+      row.className = "card-type-breakdown-row";
+
+      const typeLabel = document.createElement("span");
+      typeLabel.textContent = item.label || item.key || "Other";
+
+      const count = document.createElement("span");
+      count.textContent = String(item.count || 0);
+
+      row.append(typeLabel, count);
+      rows.append(row);
+    });
+
+    if (!rows.children.length) {
+      const empty = document.createElement("p");
+      empty.className = "card-type-breakdown-empty";
+      empty.textContent = "No cards";
+      rows.append(empty);
+    }
+
+    group.append(rows);
+    groups.append(group);
+  });
+
+  panel.append(groups);
   return panel;
 }

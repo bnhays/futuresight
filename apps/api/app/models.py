@@ -55,9 +55,23 @@ class LandColorProduction(BaseModel):
     percentage: int = 0
 
 
+class CardTypeCount(BaseModel):
+    key: str
+    label: str
+    count: int = 0
+
+
+class CardTypeBreakdown(BaseModel):
+    section: str
+    label: str
+    total: int = 0
+    types: list[CardTypeCount] = Field(default_factory=list)
+
+
 class DeckStats(BaseModel):
     mana_curve: list[ManaCurveBucket] = Field(default_factory=list)
     land_color_production: list[LandColorProduction] = Field(default_factory=list)
+    card_type_breakdown: list[CardTypeBreakdown] = Field(default_factory=list)
 
 
 class RandomCardArt(BaseModel):

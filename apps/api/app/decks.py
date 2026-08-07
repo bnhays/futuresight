@@ -5,6 +5,7 @@ from bson import ObjectId
 from fastapi import APIRouter, HTTPException, Query
 
 from app.cards import resolve_card_data
+from app.db import get_database
 from app.deck_parser import parse_decklist
 from app.deck_schemas import (
     DeckImportRequest,
@@ -27,7 +28,6 @@ from app.deck_versions import (
     list_deck_version_summaries,
     parse_object_id,
 )
-from app.db import get_database
 from app.matchups import (
     MatchupHistoryRequest,
     normalize_matchup_opponent_deck_id,
@@ -68,7 +68,9 @@ def normalize_description(value: str | None) -> str | None:
     return description[:150] or None
 
 
-async def parse_and_resolve_decklist(db, decklist: str) -> tuple[list[ParsedDeckCard], list[str], DeckImportMetrics]:
+async def parse_and_resolve_decklist(
+    db, decklist: str
+) -> tuple[list[ParsedDeckCard], list[str], DeckImportMetrics]:
     parsed = parse_decklist(decklist)
     cards = [ParsedDeckCard(**card) for card in parsed["cards"]]
     warnings = list(parsed["warnings"])
@@ -87,7 +89,9 @@ async def parse_and_resolve_decklist(db, decklist: str) -> tuple[list[ParsedDeck
 @router.post("/import", response_model=DeckImportResponse)
 async def import_deck(payload: DeckImportRequest) -> DeckImportResponse:
     db = get_database()
-    cards, warnings, import_metrics = await parse_and_resolve_decklist(db, payload.decklist)
+    cards, warnings, import_metrics = await parse_and_resolve_decklist(
+        db, payload.decklist
+    )
 
     now = utc_now()
     deck_name = (payload.name or "").strip() or "Untitled Deck"
@@ -128,7 +132,12 @@ async def import_deck(payload: DeckImportRequest) -> DeckImportResponse:
     )
     await db.decks.update_one(
         {"_id": deck_result.inserted_id},
-        {"$set": {"active_version_id": version_result.inserted_id, "active_version_number": 1}},
+        {
+            "$set": {
+                "active_version_id": version_result.inserted_id,
+                "active_version_number": 1,
+            }
+        },
     )
 
     return DeckImportResponse(
@@ -149,7 +158,9 @@ async def import_deck(payload: DeckImportRequest) -> DeckImportResponse:
 
 @router.get("", response_model=list[DeckSummary])
 @router.get("/", response_model=list[DeckSummary], include_in_schema=False)
-async def list_decks(limit: int | None = Query(default=None, ge=1, le=100)) -> list[DeckSummary]:
+async def list_decks(
+    limit: int | None = Query(default=None, ge=1, le=100),
+) -> list[DeckSummary]:
     db = get_database()
     cursor = db.decks.find().sort("updated_at", -1)
     if limit:
@@ -158,7 +169,9 @@ async def list_decks(limit: int | None = Query(default=None, ge=1, le=100)) -> l
     async for deck in cursor:
         version = None
         if deck.get("active_version_id"):
-            version = await db.deck_versions.find_one({"_id": deck["active_version_id"]})
+            version = await db.deck_versions.find_one(
+                {"_id": deck["active_version_id"]}
+            )
 
         summaries.append(
             serialize_deck_summary(deck, version.get("cards", []) if version else [])
@@ -214,10 +227,14 @@ async def list_deck_versions(deck_id: str) -> list[DeckVersionSummary]:
     if not deck:
         raise HTTPException(status_code=404, detail="Deck not found.")
 
-    return await list_deck_version_summaries(db, deck_object_id, deck.get("active_version_id"))
+    return await list_deck_version_summaries(
+        db, deck_object_id, deck.get("active_version_id")
+    )
 
 
-@router.post("/{deck_id}/versions/{version_id}/restore", response_model=DeckUpdateResponse)
+@router.post(
+    "/{deck_id}/versions/{version_id}/restore", response_model=DeckUpdateResponse
+)
 async def restore_deck_version(
     deck_id: str,
     version_id: str,
@@ -232,10 +249,9 @@ async def restore_deck_version(
     source_version = await get_selected_version(db, deck, version_id=version_id)
     now = utc_now()
     version_number = await get_next_version_number(db, deck_object_id)
-    version_name = (
-        normalize_version_name(payload.version_name if payload else None)
-        or source_version.get("version_name")
-    )
+    version_name = normalize_version_name(
+        payload.version_name if payload else None
+    ) or source_version.get("version_name")
     change_note = (
         normalize_change_note(payload.change_note if payload else None)
         or f"Restored version {source_version.get('version_number') or 1}."
@@ -318,8 +334,13 @@ async def update_deck_version_metadata(
     return serialize_deck_version_summary(version, deck.get("active_version_id"))
 
 
-@router.get("/{deck_id}/versions/{version_id}/matchups", response_model=list[MatchupHistoryEntry])
-async def list_version_matchups(deck_id: str, version_id: str) -> list[MatchupHistoryEntry]:
+@router.get(
+    "/{deck_id}/versions/{version_id}/matchups",
+    response_model=list[MatchupHistoryEntry],
+)
+async def list_version_matchups(
+    deck_id: str, version_id: str
+) -> list[MatchupHistoryEntry]:
     db = get_database()
     deck_object_id = parse_object_id(deck_id)
     deck = await db.decks.find_one({"_id": deck_object_id})
@@ -330,7 +351,9 @@ async def list_version_matchups(deck_id: str, version_id: str) -> list[MatchupHi
     return serialize_matchup_history(version.get("matchups", []))
 
 
-@router.post("/{deck_id}/versions/{version_id}/matchups", response_model=MatchupHistoryEntry)
+@router.post(
+    "/{deck_id}/versions/{version_id}/matchups", response_model=MatchupHistoryEntry
+)
 async def create_version_matchup(
     deck_id: str,
     version_id: str,
@@ -345,7 +368,9 @@ async def create_version_matchup(
     version = await get_selected_version(db, deck, version_id=version_id)
     now = utc_now()
     opponent_deck = normalize_matchup_text(payload.opponent_deck, 80)
-    opponent_deck_id = await normalize_matchup_opponent_deck_id(db, payload.opponent_deck_id)
+    opponent_deck_id = await normalize_matchup_opponent_deck_id(
+        db, payload.opponent_deck_id
+    )
     tournament_name = normalize_matchup_text(payload.tournament_name, 120)
     outcome = normalize_matchup_text(payload.outcome, 20)
     if not opponent_deck or not tournament_name or not outcome:
@@ -387,14 +412,20 @@ async def update_version_matchup(
 
     version = await get_selected_version(db, deck, version_id=version_id)
     existing_matchup = next(
-        (matchup for matchup in version.get("matchups", []) if matchup.get("id") == matchup_object_id),
+        (
+            matchup
+            for matchup in version.get("matchups", [])
+            if matchup.get("id") == matchup_object_id
+        ),
         None,
     )
     if not existing_matchup:
         raise HTTPException(status_code=404, detail="Matchup not found.")
 
     opponent_deck = normalize_matchup_text(payload.opponent_deck, 80)
-    opponent_deck_id = await normalize_matchup_opponent_deck_id(db, payload.opponent_deck_id)
+    opponent_deck_id = await normalize_matchup_opponent_deck_id(
+        db, payload.opponent_deck_id
+    )
     tournament_name = normalize_matchup_text(payload.tournament_name, 120)
     outcome = normalize_matchup_text(payload.outcome, 20)
     if not opponent_deck or not tournament_name or not outcome:
@@ -407,7 +438,11 @@ async def update_version_matchup(
         "matchups.$.outcome": outcome,
     }
     await db.deck_versions.update_one(
-        {"_id": version["_id"], "deck_id": deck_object_id, "matchups.id": matchup_object_id},
+        {
+            "_id": version["_id"],
+            "deck_id": deck_object_id,
+            "matchups.id": matchup_object_id,
+        },
         {"$set": updates},
     )
 
@@ -422,7 +457,9 @@ async def update_version_matchup(
 
 
 @router.delete("/{deck_id}/versions/{version_id}/matchups/{matchup_id}")
-async def delete_version_matchup(deck_id: str, version_id: str, matchup_id: str) -> dict[str, bool]:
+async def delete_version_matchup(
+    deck_id: str, version_id: str, matchup_id: str
+) -> dict[str, bool]:
     db = get_database()
     deck_object_id = parse_object_id(deck_id)
     matchup_object_id = parse_matchup_object_id(matchup_id)
@@ -432,7 +469,11 @@ async def delete_version_matchup(deck_id: str, version_id: str, matchup_id: str)
 
     version = await get_selected_version(db, deck, version_id=version_id)
     result = await db.deck_versions.update_one(
-        {"_id": version["_id"], "deck_id": deck_object_id, "matchups.id": matchup_object_id},
+        {
+            "_id": version["_id"],
+            "deck_id": deck_object_id,
+            "matchups.id": matchup_object_id,
+        },
         {"$pull": {"matchups": {"id": matchup_object_id}}},
     )
     if not result.modified_count:
@@ -453,7 +494,9 @@ async def get_deck(
     if not deck:
         raise HTTPException(status_code=404, detail="Deck not found.")
 
-    selected_version = await get_selected_version(db, deck, version_id=version_id, version_number=version)
+    selected_version = await get_selected_version(
+        db, deck, version_id=version_id, version_number=version
+    )
     return await serialize_deck_detail(db, deck, selected_version)
 
 
@@ -465,15 +508,23 @@ async def update_deck(deck_id: str, payload: DeckImportRequest) -> DeckUpdateRes
     if not deck:
         raise HTTPException(status_code=404, detail="Deck not found.")
 
-    cards, warnings, import_metrics = await parse_and_resolve_decklist(db, payload.decklist)
+    cards, warnings, import_metrics = await parse_and_resolve_decklist(
+        db, payload.decklist
+    )
     now = utc_now()
     deck_name = (payload.name or "").strip() or "Untitled Deck"
     deck_format = payload.format.strip().lower() or "modern"
     deck_description = normalize_description(payload.description)
     thumbnail_card_name = normalize_thumbnail_card_name(payload.thumbnail_card_name)
 
-    active_version = await db.deck_versions.find_one({"_id": deck["active_version_id"]}) if deck.get("active_version_id") else None
-    comparison_version = active_version or await get_version_for_noop_check(db, deck, payload.base_version_id)
+    active_version = (
+        await db.deck_versions.find_one({"_id": deck["active_version_id"]})
+        if deck.get("active_version_id")
+        else None
+    )
+    comparison_version = active_version or await get_version_for_noop_check(
+        db, deck, payload.base_version_id
+    )
     if comparison_version and decklist_matches_submission(comparison_version, cards):
         version_to_update = comparison_version
         metadata_updates = {
@@ -511,9 +562,13 @@ async def update_deck(deck_id: str, payload: DeckImportRequest) -> DeckUpdateRes
             format=deck_format,
             description=deck_description,
             thumbnail_card_name=thumbnail_card_name,
-            cards=[ParsedDeckCard(**card) for card in version_to_update.get("cards", [])],
+            cards=[
+                ParsedDeckCard(**card) for card in version_to_update.get("cards", [])
+            ],
             warnings=version_to_update.get("warnings", []),
-            import_metrics=DeckImportMetrics(**version_to_update.get("import_metrics", {})),
+            import_metrics=DeckImportMetrics(
+                **version_to_update.get("import_metrics", {})
+            ),
         )
 
     version_number = await get_next_version_number(db, deck_object_id)

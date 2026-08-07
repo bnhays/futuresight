@@ -1,4 +1,6 @@
 from app.models import (
+    CardTypeBreakdown,
+    CardTypeCount,
     DeckCardGroup,
     DeckGroupedCards,
     DeckStats,
@@ -7,11 +9,26 @@ from app.models import (
     ParsedDeckCard,
 )
 
-
 COLOR_ORDER = ["W", "U", "B", "R", "G", "C"]
 LAND_COLOR_ORDER = ["W", "U", "B", "R", "G"]
-MAINBOARD_TYPE_ORDER = ["Creature", "Planeswalker", "Artifact", "Enchantment", "Instant", "Sorcery", "Land"]
-TYPE_PRIORITIES = ["Creature", "Land", "Planeswalker", "Artifact", "Enchantment", "Instant", "Sorcery"]
+MAINBOARD_TYPE_ORDER = [
+    "Creature",
+    "Planeswalker",
+    "Artifact",
+    "Enchantment",
+    "Instant",
+    "Sorcery",
+    "Land",
+]
+TYPE_PRIORITIES = [
+    "Creature",
+    "Land",
+    "Planeswalker",
+    "Artifact",
+    "Enchantment",
+    "Instant",
+    "Sorcery",
+]
 TYPE_LABELS = {
     "Creature": "Creatures",
     "Planeswalker": "Planeswalkers",
@@ -44,7 +61,9 @@ def get_deck_color_identity(cards: list[dict]) -> list[str]:
     return [color for color in COLOR_ORDER if color in colors]
 
 
-def find_thumbnail_card(cards: list[dict], thumbnail_card_name: str | None) -> ParsedDeckCard | None:
+def find_thumbnail_card(
+    cards: list[dict], thumbnail_card_name: str | None
+) -> ParsedDeckCard | None:
     thumbnail_key = normalize_name_key(thumbnail_card_name or "")
     if not thumbnail_key:
         return None
@@ -66,7 +85,9 @@ def get_card_data(card: ParsedDeckCard | dict) -> dict:
 
 
 def get_card_quantity(card: ParsedDeckCard | dict) -> int:
-    quantity = card.quantity if isinstance(card, ParsedDeckCard) else card.get("quantity", 0)
+    quantity = (
+        card.quantity if isinstance(card, ParsedDeckCard) else card.get("quantity", 0)
+    )
     return int(quantity or 0)
 
 
@@ -132,7 +153,9 @@ def get_produced_mana_colors(card: ParsedDeckCard | dict) -> list[str]:
 
 def get_land_color_production(cards: list[dict]) -> list[LandColorProduction]:
     production = [
-        LandColorProduction(color=color, label=COLOR_LABELS.get(color, color), count=0, percentage=0)
+        LandColorProduction(
+            color=color, label=COLOR_LABELS.get(color, color), count=0, percentage=0
+        )
         for color in LAND_COLOR_ORDER
     ]
     production_by_color = {item.color: item for item in production}
@@ -158,10 +181,61 @@ def get_land_color_production(cards: list[dict]) -> list[LandColorProduction]:
     return production
 
 
+def order_card_types(type_counts: dict[str, int]) -> list[str]:
+    return [
+        *[card_type for card_type in MAINBOARD_TYPE_ORDER if type_counts.get(card_type)],
+        *sorted(
+            card_type
+            for card_type in type_counts
+            if card_type not in MAINBOARD_TYPE_ORDER and type_counts.get(card_type)
+        ),
+    ]
+
+
+def get_card_type_breakdown(cards: list[dict]) -> list[CardTypeBreakdown]:
+    sections = {
+        "mainboard": {"label": "Mainboard", "total": 0, "types": {}},
+        "sideboard": {"label": "Sideboard", "total": 0, "types": {}},
+    }
+
+    for card in cards:
+        section = get_card_section(card)
+        if section not in sections:
+            continue
+
+        quantity = get_card_quantity(card)
+        if quantity <= 0:
+            continue
+
+        card_type = get_card_type(get_card_data(card).get("type_line", "")) or "Other"
+        section_counts = sections[section]
+        type_counts = section_counts["types"]
+        section_counts["total"] += quantity
+        type_counts[card_type] = type_counts.get(card_type, 0) + quantity
+
+    return [
+        CardTypeBreakdown(
+            section=section,
+            label=str(section_counts["label"]),
+            total=int(section_counts["total"]),
+            types=[
+                CardTypeCount(
+                    key=card_type,
+                    label=get_type_label(card_type),
+                    count=section_counts["types"][card_type],
+                )
+                for card_type in order_card_types(section_counts["types"])
+            ],
+        )
+        for section, section_counts in sections.items()
+    ]
+
+
 def get_deck_stats(cards: list[dict]) -> DeckStats:
     return DeckStats(
         mana_curve=get_mana_curve(cards),
         land_color_production=get_land_color_production(cards),
+        card_type_breakdown=get_card_type_breakdown(cards),
     )
 
 
@@ -179,8 +253,16 @@ def get_grouped_cards(cards: list[dict]) -> DeckGroupedCards:
         mainboard_groups.setdefault(card_type, []).append(parsed_card)
 
     ordered_types = [
-        *[card_type for card_type in MAINBOARD_TYPE_ORDER if mainboard_groups.get(card_type)],
-        *sorted(card_type for card_type in mainboard_groups if card_type not in MAINBOARD_TYPE_ORDER),
+        *[
+            card_type
+            for card_type in MAINBOARD_TYPE_ORDER
+            if mainboard_groups.get(card_type)
+        ],
+        *sorted(
+            card_type
+            for card_type in mainboard_groups
+            if card_type not in MAINBOARD_TYPE_ORDER
+        ),
     ]
 
     return DeckGroupedCards(

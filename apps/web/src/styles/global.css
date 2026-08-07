@@ -71,6 +71,12 @@
   --shadow-bar: 0 0.85rem 2rem rgb(0 0 0 / 34%);
 }
 
+[data-theme="dark"] .mana-curve-fill {
+  border: 1px solid var(--color-primary);
+  background: var(--color-primary);
+  opacity: 0.78;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -776,6 +782,7 @@ button:disabled:focus {
 .deck-card-preview-panel,
 .mana-curve-panel,
 .land-colors-panel,
+.card-type-breakdown-panel,
 .matchup-history-panel {
   display: grid;
   gap: 0.75rem;
@@ -795,6 +802,7 @@ button:disabled:focus {
 
 .mana-curve-panel h2,
 .land-colors-panel h2,
+.card-type-breakdown-panel h2,
 .matchup-history-panel h2 {
   margin: 0;
   font-size: 0.95rem;
@@ -1064,10 +1072,9 @@ button:disabled:focus {
   display: block;
   width: 100%;
   min-height: 0.35rem;
-  border: 1px solid var(--color-primary);
+  border: 1px solid var(--color-header-border);
   border-radius: 5px 5px 2px 2px;
-  background: var(--color-primary);
-  opacity: 0.78;
+  background: var(--color-header-bg);
 }
 
 .mana-curve-label {
@@ -1081,7 +1088,7 @@ button:disabled:focus {
 
 .land-color-row {
   display: grid;
-  grid-template-columns: 3.8rem minmax(0, 1fr) 2.6rem;
+  grid-template-columns: 1.2rem minmax(0, 1fr) 2.6rem;
   align-items: center;
   gap: 0.5rem;
   min-width: 0;
@@ -1117,6 +1124,60 @@ button:disabled:focus {
   display: block;
   height: 100%;
   border-radius: inherit;
+}
+
+.card-type-breakdown-groups {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.card-type-breakdown-group,
+.card-type-breakdown-rows {
+  display: grid;
+  gap: 0.35rem;
+}
+
+.card-type-breakdown-summary,
+.card-type-breakdown-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  min-width: 0;
+  color: var(--color-muted);
+  font-size: 0.82rem;
+  line-height: 1.2;
+}
+
+.card-type-breakdown-summary {
+  color: var(--color-heading);
+  font-weight: 800;
+}
+
+.card-type-breakdown-row {
+  font-weight: 700;
+}
+
+.card-type-breakdown-row span:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.card-type-breakdown-summary span:last-child {
+  color: var(--color-heading);
+  font-variant-numeric: tabular-nums;
+}
+
+.card-type-breakdown-row span:last-child {
+  font-variant-numeric: tabular-nums;
+}
+
+.card-type-breakdown-empty {
+  margin: 0;
+  color: var(--color-muted);
+  font-size: 0.82rem;
+  font-weight: 700;
+  line-height: 1.2;
 }
 
 .card-qty {
