@@ -1221,12 +1221,14 @@ button:disabled:focus {
 .card-type-breakdown-groups {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-items: start;
   gap: 0.8rem;
 }
 
 .card-type-breakdown-group,
 .card-type-breakdown-rows {
   display: grid;
+  align-content: start;
   gap: 0.35rem;
 }
 
