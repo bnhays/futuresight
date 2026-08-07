@@ -14,12 +14,15 @@ Manual verification was performed against the Docker-based application build.
 - Confirmed historical version detail pages were preview-only.
 - Tried saving an unchanged edit form.
 - Restored an older version and confirmed it appeared as the newest version.
-- Reviewed mana curve and land-produced-color panels on deck detail pages.
+- Reviewed API-provided mana curve, land-produced-color, and card type count statistics on deck detail pages.
 - Logged basic matchup results for selected deck versions.
 - Used the matchup history recent/all toggle after multiple entries were present.
+- Confirmed matchup result badges appeared for win, loss, draw, and score-style outcomes.
+- Logged a matchup against another saved deck and opened the linked opponent deck from the matchup card.
 - Used quick card-quantity update controls from the deck detail view.
 - Deleted saved decks.
 - Checked various potential error states, including missing or invalid input and unavailable deck data.
+- Reviewed API test coverage under `apps/api/tests` for deck parsing and Scryfall normalization behavior.
 
 ## Expected Results
 
@@ -34,12 +37,15 @@ Manual verification was performed against the Docker-based application build.
 - Version list items should open preview-only deck detail pages.
 - Historical preview pages should not allow editing or quick quantity updates.
 - Restoring an older version should duplicate it as a new latest version.
-- Deck detail pages should show basic deck analysis panels for API-provided mana curve and land-produced-color distribution.
+- Deck detail pages should show basic deck analysis panels for API-provided mana curve, land-produced-color distribution, and card type counts.
 - Matchup history should show entries logged for the selected deck version.
+- Matchup entries should show visual result badges when the outcome can be classified.
+- Matchup entries linked to another saved deck should provide a link to that opponent deck.
 - The matchup form should reject blank fields and save entries with opponent deck, tournament, outcome, and date.
 - Quick quantity updates should mark the deck as changed and allow the updated decklist to be saved.
 - Deleted decks should be removed from the saved deck list and should no longer open in the detail view.
 - Error states should provide a visible message or safe empty state instead of breaking the page.
+- The API tests should cover common parser formats, Scryfall card normalization, card image selection, and Scryfall collection chunking.
 
 ## Observed Results
 
@@ -48,10 +54,11 @@ Manual verification was performed against the Docker-based application build.
 - Deck detail pages loaded and displayed saved deck information.
 - Deck metadata editing and quick quantity updates worked as expected for the tested flows.
 - Version history, version metadata editing, historical preview, and restore flows worked as expected for the tested flows.
-- Basic matchup logging and matchup history display worked as expected for the tested flows.
-- Mana curve and land-produced-color panels appeared on deck detail pages.
+- Basic matchup logging, result badges, opponent deck links, and matchup history display worked as expected for the tested flows.
+- Mana curve, land-produced-color, and card type count panels appeared on deck detail pages using API-provided statistics.
 - Deck deletion worked as expected for the tested flows.
 - Error and empty states were checked and did not prevent continued use of the prototype.
+- The reviewed API tests covered parser behavior and Scryfall normalization helpers for the tested code paths.
 
 ## Issues Found
 
