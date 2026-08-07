@@ -2,9 +2,9 @@
 
 ## Prototype Purpose
 
-Future Sight is a prototype deck-management tool for competitive Magic: The Gathering players. The current version focuses on importing decklists, resolving card details from Scryfall, saving decks, browsing saved decks, inspecting individual cards, editing deck metadata and decklists, quickly adjusting card quantities, and deleting decks.
+Future Sight is a prototype deck-management tool for competitive Magic: The Gathering players. The current version focuses on importing decklists, resolving card details from Scryfall, saving decks, browsing saved decks, inspecting individual cards, editing deck metadata and decklists, tracking linear deck versions, logging basic matchup results per version, quickly adjusting card quantities, and deleting decks.
 
-The prototype is intended to prove the core full-stack workflow: an Astro client sends deck data to a FastAPI server, the server parses and enriches the deck with Scryfall data, and MongoDB stores the deck records, active deck version, and cached card data.
+The prototype is intended to prove the core full-stack workflow: an Astro client sends deck data to a FastAPI server, the server parses and enriches the deck with Scryfall data, and MongoDB stores deck records, deck version snapshots, per-version matchup entries, and cached card data.
 
 ## Project Documents
 
@@ -18,8 +18,8 @@ The prototype is intended to prove the core full-stack workflow: an Astro client
 
 The project is structured as a small full-stack repo:
 
-- `apps/web`: Astro frontend for deck import, saved deck browsing, deck detail views, card inspection, and deck editing.
-- `apps/api`: FastAPI backend for deck import/update/delete logic, Scryfall lookup, and cached card data. Placeholder modules exist for legality checks, statistics, and matchup tracking.
+- `apps/web`: Astro frontend for deck import, saved deck browsing, deck detail views, card inspection, deck editing, version history, basic matchup history, and client-side deck analysis panels.
+- `apps/api`: FastAPI backend for deck import/update/delete logic, version snapshots, basic per-version matchup logging, Scryfall lookup, and cached card data. Placeholder modules still exist for full legality checks, backend statistics, and broader matchup/tournament workflows.
 - `mongo`: MongoDB service managed through Docker Compose.
 
 ## Dependencies
@@ -73,47 +73,18 @@ make down
 make logs
 ```
 
-Local API commands:
-
-```sh
-make api-install
-make api-dev
-```
-
-Local frontend commands:
-
-```sh
-make web-install
-make web-dev
-make web-build
-make web-preview
-```
-
-### Run Services Locally
-
-```sh
-cd apps/api
-uv sync
-uv run uvicorn app.main:app --reload
-```
-
-```sh
-cd apps/web
-npm install
-npm run dev
-```
-
-When running services locally, MongoDB must also be available at the URL configured by `MONGODB_URL`, which defaults to `mongodb://localhost:27017`.
-
 ## Expected Behavior
 
 When the full stack is running:
 
 - The home page displays a deck import form, recent saved decks, and a random card-art panel sourced from saved decks.
 - A user can paste a decklist, provide optional deck metadata, and import the deck.
-- The API parses mainboard and sideboard lines, resolves card metadata through Scryfall, caches card records in MongoDB, and stores the imported deck.
-- Imported decks open in a detail view with grouped card tables, card images when available, mana cost display, type information, color identity, oracle text, and Scryfall links.
+- The API parses mainboard and sideboard lines, resolves card metadata through Scryfall, caches card records in MongoDB, and stores the imported deck as version 1.
+- Imported decks open in a detail view with grouped card tables, card images when available, mana cost display, type information, color identity, oracle text, Scryfall links, mana curve, land-produced-color summary, and matchup history.
 - Decks can be edited by changing metadata or replacing the decklist.
+- Changed deck edits append new numbered versions while preserving previous deck snapshots.
+- The Versions page lets users inspect version history, edit version names and change notes, preview historical versions, and restore an older version as the latest version.
+- Basic matchup results can be logged against the selected deck version with opponent deck, tournament, outcome, and logged date.
 - Card quantities can be adjusted quickly in the deck detail view and saved as an updated decklist.
 - Decks can be deleted from the list or detail views.
 - Basic empty and error states appear when deck data is missing, unavailable, or cannot be parsed.
@@ -123,9 +94,9 @@ When the full stack is running:
 The following features are represented in the project direction or placeholder modules, but are intentionally deferred from the current prototype:
 
 - Full format legality enforcement.
-- Durable version history browsing and comparison.
-- Matchup logging and tournament tracking.
-- Completed deck statistics such as mana curve and color distribution.
+- Side-by-side version comparison.
+- Full tournament tracking and matchup analysis beyond basic per-version matchup entries.
+- Completed backend deck statistics beyond the current client-side mana curve and land-produced-color panels.
 - A complete cached-card browsing interface.
 - Advanced validation for every possible decklist format.
 - Polished handling for unusual mana-cost displays and dense table rows.
