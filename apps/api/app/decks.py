@@ -1,112 +1,56 @@
-import asyncio
+import random
 from datetime import UTC, datetime
 
 from bson import ObjectId
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel, Field
 
+from app.cards import resolve_card_data
 from app.deck_parser import parse_decklist
+from app.deck_schemas import (
+    DeckImportRequest,
+    DeckImportResponse,
+    DeckUpdateResponse,
+    DeckVersionMetadataRequest,
+    DeckVersionRestoreRequest,
+)
+from app.deck_serializers import (
+    normalize_thumbnail_card_name,
+    serialize_deck_detail,
+    serialize_deck_summary,
+    serialize_deck_version_summary,
+)
+from app.deck_versions import (
+    decklist_matches_submission,
+    get_next_version_number,
+    get_selected_version,
+    get_version_for_noop_check,
+    list_deck_version_summaries,
+    parse_object_id,
+)
 from app.db import get_database
+from app.matchups import (
+    MatchupHistoryRequest,
+    normalize_matchup_opponent_deck_id,
+    normalize_matchup_text,
+    parse_matchup_object_id,
+    serialize_matchup_history,
+    serialize_matchup_history_entry,
+)
 from app.models import (
     DeckDetail,
     DeckImportMetrics,
     DeckSummary,
-    DeckVersionCardChange,
     DeckVersionSummary,
-    ImportedCardData,
     MatchupHistoryEntry,
     ParsedDeckCard,
+    RandomCardArt,
 )
-from app.scryfall import find_card_by_name, find_cards_by_names
 
 router = APIRouter()
 
 
-class DeckImportRequest(BaseModel):
-    decklist: str = Field(min_length=1)
-    name: str | None = None
-    format: str = "modern"
-    description: str | None = None
-    thumbnail_card_name: str | None = None
-    version_name: str | None = None
-    change_note: str | None = None
-    base_version_id: str | None = None
-
-
-class DeckVersionRestoreRequest(BaseModel):
-    version_name: str | None = None
-    change_note: str | None = None
-
-
-class DeckVersionMetadataRequest(BaseModel):
-    version_name: str | None = None
-    change_note: str | None = None
-
-
-class MatchupHistoryRequest(BaseModel):
-    opponent_deck: str = Field(min_length=1, max_length=80)
-    opponent_deck_id: str | None = None
-    tournament_name: str = Field(min_length=1, max_length=120)
-    outcome: str = Field(min_length=1, max_length=20)
-
-
-class DeckImportResponse(BaseModel):
-    id: str
-    active_version_id: str
-    version_number: int
-    version_name: str | None = None
-    change_note: str | None = None
-    name: str | None = None
-    format: str
-    description: str | None = None
-    thumbnail_card_name: str | None = None
-    cards: list[ParsedDeckCard]
-    warnings: list[str] = Field(default_factory=list)
-    import_metrics: DeckImportMetrics
-
-
-class DeckUpdateResponse(DeckImportResponse):
-    pass
-
-
 def utc_now() -> datetime:
     return datetime.now(UTC)
-
-
-def serialize_datetime(value: datetime | None) -> str | None:
-    if not value:
-        return None
-    return value.isoformat()
-
-
-COLOR_ORDER = ["W", "U", "B", "R", "G", "C"]
-
-
-def get_deck_color_identity(cards: list[dict]) -> list[str]:
-    colors = {
-        color
-        for card in cards
-        for color in (card.get("card_data") or {}).get("color_identity", [])
-    }
-    return [color for color in COLOR_ORDER if color in colors]
-
-
-def find_thumbnail_card(cards: list[dict], thumbnail_card_name: str | None) -> ParsedDeckCard | None:
-    thumbnail_key = normalize_name_key(thumbnail_card_name or "")
-    if not thumbnail_key:
-        return None
-
-    for card in cards:
-        card_name = card.get("name") or (card.get("card_data") or {}).get("name") or ""
-        if normalize_name_key(card_name) == thumbnail_key:
-            return ParsedDeckCard(**card)
-
-    return None
-
-
-def normalize_thumbnail_card_name(value: str | None) -> str | None:
-    thumbnail_card_name = (value or "").strip()
-    return thumbnail_card_name or None
 
 
 def normalize_version_name(value: str | None) -> str | None:
@@ -119,411 +63,9 @@ def normalize_change_note(value: str | None) -> str | None:
     return change_note[:240] or None
 
 
-def serialize_deck_summary(deck: dict, cards: list[dict] | None = None) -> DeckSummary:
-    active_cards = cards or []
-    thumbnail_card_name = normalize_thumbnail_card_name(deck.get("thumbnail_card_name"))
-    return DeckSummary(
-        id=str(deck["_id"]),
-        name=deck.get("name") or "Untitled Deck",
-        format=deck.get("format") or "unknown",
-        description=deck.get("description"),
-        thumbnail_card_name=thumbnail_card_name,
-        thumbnail_card=find_thumbnail_card(active_cards, thumbnail_card_name),
-        color_identity=get_deck_color_identity(active_cards),
-        active_version_id=str(deck["active_version_id"]) if deck.get("active_version_id") else None,
-        active_version_number=deck.get("active_version_number"),
-        updated_at=serialize_datetime(deck.get("updated_at")),
-    )
-
-
-def serialize_deck_version_summary(
-    version: dict,
-    active_version_id: ObjectId | None = None,
-    changes: list[DeckVersionCardChange] | None = None,
-) -> DeckVersionSummary:
-    return DeckVersionSummary(
-        id=str(version["_id"]),
-        version_number=version.get("version_number") or 1,
-        version_name=version.get("version_name"),
-        change_note=version.get("change_note"),
-        created_at=serialize_datetime(version.get("created_at")),
-        is_active=version.get("_id") == active_version_id,
-        changes=changes or [],
-    )
-
-
-def normalize_matchup_text(value: str, max_length: int) -> str:
-    return " ".join(value.split())[:max_length]
-
-
-def serialize_matchup_history_entry(matchup: dict) -> MatchupHistoryEntry:
-    opponent_deck_id = matchup.get("opponent_deck_id")
-    return MatchupHistoryEntry(
-        id=str(matchup.get("id") or matchup.get("_id") or ObjectId()),
-        opponent_deck=matchup.get("opponent_deck") or "Unknown Deck",
-        opponent_deck_id=str(opponent_deck_id) if opponent_deck_id else None,
-        tournament_name=matchup.get("tournament_name") or "Unknown Tournament",
-        outcome=matchup.get("outcome") or "",
-        created_at=serialize_datetime(matchup.get("created_at")),
-    )
-
-
-def serialize_matchup_history(matchups: list[dict]) -> list[MatchupHistoryEntry]:
-    return [
-        serialize_matchup_history_entry(matchup)
-        for matchup in sorted(
-            matchups,
-            key=lambda item: item.get("created_at") or datetime.min,
-            reverse=True,
-        )
-    ]
-
-
-def get_card_snapshot(cards: list[ParsedDeckCard] | list[dict]) -> list[dict[str, int | str]]:
-    snapshot: dict[tuple[str, str], dict[str, int | str]] = {}
-    for card in cards:
-        if isinstance(card, ParsedDeckCard):
-            quantity = card.quantity
-            name = card.name
-            section = card.section or "mainboard"
-        else:
-            quantity = card.get("quantity") or 0
-            name = card.get("name") or ""
-            section = card.get("section") or "mainboard"
-
-        key = (section, normalize_name_key(name))
-        existing = snapshot.setdefault(
-            key,
-            {
-                "quantity": 0,
-                "name": key[1],
-                "section": section,
-            },
-        )
-        existing["quantity"] = int(existing["quantity"]) + int(quantity)
-
-    return [snapshot[key] for key in sorted(snapshot)]
-
-
-def decklist_matches_submission(version: dict, cards: list[ParsedDeckCard]) -> bool:
-    return get_card_snapshot(version.get("cards", [])) == get_card_snapshot(cards)
-
-
-def get_card_change_snapshot(cards: list[ParsedDeckCard] | list[dict]) -> dict[tuple[str, str], dict[str, int | str]]:
-    snapshot: dict[tuple[str, str], dict[str, int | str]] = {}
-    for card in cards:
-        if isinstance(card, ParsedDeckCard):
-            quantity = card.quantity
-            name = card.name
-            section = card.section or "mainboard"
-        else:
-            quantity = card.get("quantity") or 0
-            name = card.get("name") or ""
-            section = card.get("section") or "mainboard"
-
-        key = (section, normalize_name_key(name))
-        existing = snapshot.setdefault(
-            key,
-            {
-                "quantity": 0,
-                "name": name,
-                "section": section,
-            },
-        )
-        existing["quantity"] = int(existing["quantity"]) + int(quantity)
-
-    return snapshot
-
-
-def get_version_card_changes(
-    previous_cards: list[ParsedDeckCard] | list[dict],
-    current_cards: list[ParsedDeckCard] | list[dict],
-) -> list[DeckVersionCardChange]:
-    previous_snapshot = get_card_change_snapshot(previous_cards)
-    current_snapshot = get_card_change_snapshot(current_cards)
-    changes: list[DeckVersionCardChange] = []
-
-    for key in sorted(set(previous_snapshot) | set(current_snapshot)):
-        previous = previous_snapshot.get(key)
-        current = current_snapshot.get(key)
-        previous_quantity = int(previous["quantity"]) if previous else 0
-        quantity = int(current["quantity"]) if current else 0
-        if previous_quantity == quantity:
-            continue
-
-        if previous_quantity <= 0:
-            change_type = "added"
-        elif quantity <= 0:
-            change_type = "removed"
-        else:
-            change_type = "modified"
-
-        change_source = current or previous or {}
-        changes.append(
-            DeckVersionCardChange(
-                change_type=change_type,
-                name=str(change_source.get("name") or ""),
-                section=str(change_source.get("section") or "mainboard"),
-                previous_quantity=previous_quantity,
-                quantity=quantity,
-            )
-        )
-
-    return changes
-
-
-async def list_deck_version_summaries(
-    db,
-    deck_id: ObjectId,
-    active_version_id: ObjectId | None = None,
-) -> list[DeckVersionSummary]:
-    cursor = db.deck_versions.find({"deck_id": deck_id}).sort("version_number", 1)
-    versions = [version async for version in cursor]
-    changes_by_id: dict[ObjectId, list[DeckVersionCardChange]] = {}
-    previous_cards: list[dict] = []
-
-    for version in versions:
-        changes_by_id[version["_id"]] = get_version_card_changes(previous_cards, version.get("cards", []))
-        previous_cards = version.get("cards", [])
-
-    return [
-        serialize_deck_version_summary(version, active_version_id, changes_by_id.get(version["_id"], []))
-        for version in reversed(versions)
-    ]
-
-
-async def get_next_version_number(db, deck_id: ObjectId) -> int:
-    latest = await db.deck_versions.find_one(
-        {"deck_id": deck_id, "version_number": {"$exists": True}},
-        sort=[("version_number", -1)],
-    )
-    version_count = await db.deck_versions.count_documents({"deck_id": deck_id})
-    latest_number = latest.get("version_number") if latest else 0
-    return max(latest_number or 0, version_count) + 1
-
-
-async def get_selected_version(
-    db,
-    deck: dict,
-    version_id: str | None = None,
-    version_number: int | None = None,
-) -> dict:
-    deck_object_id = deck["_id"]
-    if version_id:
-        version_object_id = parse_object_id(version_id)
-        version = await db.deck_versions.find_one(
-            {"_id": version_object_id, "deck_id": deck_object_id}
-        )
-    elif version_number:
-        version = await db.deck_versions.find_one(
-            {"deck_id": deck_object_id, "version_number": version_number}
-        )
-    elif deck.get("active_version_id"):
-        version = await db.deck_versions.find_one({"_id": deck["active_version_id"]})
-    else:
-        version = None
-
-    if not version:
-        raise HTTPException(status_code=404, detail="Deck version not found.")
-
-    return version
-
-
-async def get_version_for_noop_check(db, deck: dict, base_version_id: str | None) -> dict | None:
-    if base_version_id:
-        try:
-            return await get_selected_version(db, deck, version_id=base_version_id)
-        except HTTPException:
-            return None
-
-    if deck.get("active_version_id"):
-        return await db.deck_versions.find_one({"_id": deck["active_version_id"]})
-
-    return None
-
-
-async def serialize_deck_detail(db, deck: dict, version: dict) -> DeckDetail:
-    cards = version.get("cards", [])
-    active_version_id = deck.get("active_version_id")
-    versions = await list_deck_version_summaries(db, deck["_id"], active_version_id)
-    thumbnail_card_name = normalize_thumbnail_card_name(version.get("thumbnail_card_name"))
-    return DeckDetail(
-        id=str(deck["_id"]),
-        name=version.get("name") or deck.get("name") or "Untitled Deck",
-        format=version.get("format") or deck.get("format") or "unknown",
-        description=version.get("description"),
-        thumbnail_card_name=thumbnail_card_name,
-        thumbnail_card=find_thumbnail_card(cards, thumbnail_card_name),
-        color_identity=get_deck_color_identity(cards),
-        active_version_id=str(active_version_id) if active_version_id else None,
-        active_version_number=deck.get("active_version_number"),
-        updated_at=serialize_datetime(deck.get("updated_at")),
-        selected_version_id=str(version["_id"]),
-        version_number=version.get("version_number") or 1,
-        version_name=version.get("version_name"),
-        change_note=version.get("change_note"),
-        version_created_at=serialize_datetime(version.get("created_at")),
-        versions=versions,
-        cards=[ParsedDeckCard(**card) for card in cards],
-        matchups=serialize_matchup_history(version.get("matchups", [])),
-        warnings=version.get("warnings", []),
-        import_metrics=DeckImportMetrics(**version.get("import_metrics", {})),
-        raw_decklist=version.get("raw_decklist"),
-        created_at=serialize_datetime(deck.get("created_at")),
-    )
-
-
 def normalize_description(value: str | None) -> str | None:
     description = (value or "").strip()
     return description[:150] or None
-
-
-def parse_object_id(value: str) -> ObjectId:
-    if not ObjectId.is_valid(value):
-        raise HTTPException(status_code=404, detail="Deck not found.")
-    return ObjectId(value)
-
-
-def parse_matchup_object_id(value: str) -> ObjectId:
-    if not ObjectId.is_valid(value):
-        raise HTTPException(status_code=404, detail="Matchup not found.")
-    return ObjectId(value)
-
-
-async def normalize_matchup_opponent_deck_id(db, value: str | None) -> ObjectId | None:
-    deck_id = (value or "").strip()
-    if not deck_id:
-        return None
-
-    opponent_deck_id = parse_object_id(deck_id)
-    opponent_deck = await db.decks.find_one({"_id": opponent_deck_id})
-    if not opponent_deck:
-        raise HTTPException(status_code=400, detail="Opponent deck was not found.")
-
-    return opponent_deck_id
-
-
-def normalize_name_key(name: str) -> str:
-    return " ".join(name.casefold().split())
-
-
-def cache_document_to_card_data(document: dict) -> ImportedCardData:
-    return ImportedCardData(
-        name=document.get("name"),
-        scryfall_id=document.get("scryfall_id"),
-        mana_cost=document.get("mana_cost", ""),
-        cmc=document.get("cmc", 0),
-        type_line=document.get("type_line", ""),
-        oracle_text=document.get("oracle_text", ""),
-        colors=document.get("colors", []),
-        color_identity=document.get("color_identity", []),
-        produced_mana=document.get("produced_mana", []),
-        legalities=document.get("legalities", {}),
-        image_uri=document.get("image_uri"),
-        scryfall_uri=document.get("scryfall_uri"),
-    )
-
-
-def card_data_to_cache_document(name: str, card_data: ImportedCardData, cached_at: datetime) -> dict:
-    return {
-        **card_data.model_dump(),
-        "name_key": normalize_name_key(name),
-        "cached_at": cached_at,
-    }
-
-
-async def load_cached_cards(db, names: list[str]) -> tuple[dict[str, ImportedCardData], int]:
-    name_keys = [normalize_name_key(name) for name in names]
-    cursor = db.cards.find({"name_key": {"$in": name_keys}})
-    documents = [document async for document in cursor]
-    return {
-        document["name_key"]: cache_document_to_card_data(document)
-        for document in documents
-    }, 1
-
-
-async def cache_card_data(db, requested_name: str, card_data: ImportedCardData, cached_at: datetime) -> None:
-    name_key = normalize_name_key(requested_name)
-    await db.cards.update_one(
-        {"name_key": name_key},
-        {"$set": card_data_to_cache_document(requested_name, card_data, cached_at)},
-        upsert=True,
-    )
-
-
-async def resolve_card_data(db, names: list[str], warnings: list[str]) -> tuple[dict[str, ImportedCardData | None], DeckImportMetrics]:
-    cached_cards, database_reads = await load_cached_cards(db, names)
-    lookup_results: dict[str, ImportedCardData | None] = {}
-    missing_names: list[str] = []
-
-    for name in names:
-        cached_card = cached_cards.get(normalize_name_key(name))
-        if cached_card:
-            lookup_results[name] = cached_card
-        else:
-            missing_names.append(name)
-
-    metrics = DeckImportMetrics(
-        unique_card_names=len(names),
-        database_reads=database_reads,
-        cache_hits=len(names) - len(missing_names),
-        cache_misses=len(missing_names),
-    )
-
-    unresolved_names = list(missing_names)
-    if missing_names:
-        try:
-            bulk_cards, _not_found_names, bulk_calls = await find_cards_by_names(missing_names)
-            metrics.scryfall_bulk_calls += bulk_calls
-            metrics.scryfall_calls += bulk_calls
-
-            missing_by_key = {normalize_name_key(name): name for name in missing_names}
-            unresolved_keys = set(missing_by_key)
-
-            for card_data_raw in bulk_cards:
-                card_data = ImportedCardData(**card_data_raw)
-                requested_name = missing_by_key.get(normalize_name_key(card_data.name or ""))
-                if not requested_name:
-                    continue
-
-                lookup_results[requested_name] = card_data
-                await cache_card_data(db, requested_name, card_data, utc_now())
-                unresolved_keys.discard(normalize_name_key(requested_name))
-
-            unresolved_names = [
-                missing_by_key[name_key]
-                for name_key in unresolved_keys
-                if name_key in missing_by_key
-            ]
-        except Exception as exc:
-            warnings.append(f"Bulk card lookup failed: {exc}")
-            unresolved_names = []
-
-    for card_name in unresolved_names:
-        try:
-            metrics.scryfall_fuzzy_calls += 1
-            metrics.scryfall_calls += 1
-            card_data = await find_card_by_name(card_name)
-        except Exception as exc:
-            lookup_results[card_name] = None
-            warnings.append(f"Card lookup failed for '{card_name}': {exc}")
-            await asyncio.sleep(0.1)
-            continue
-
-        if card_data:
-            imported_card_data = ImportedCardData(**card_data)
-            lookup_results[card_name] = imported_card_data
-            await cache_card_data(db, card_name, imported_card_data, utc_now())
-        else:
-            lookup_results[card_name] = None
-            warnings.append(f"Could not find '{card_name}' on Scryfall.")
-
-        await asyncio.sleep(0.1)
-
-    for name in names:
-        lookup_results.setdefault(name, None)
-
-    return lookup_results, metrics
 
 
 async def parse_and_resolve_decklist(db, decklist: str) -> tuple[list[ParsedDeckCard], list[str], DeckImportMetrics]:
@@ -623,6 +165,45 @@ async def list_decks(limit: int | None = Query(default=None, ge=1, le=100)) -> l
         )
 
     return summaries
+
+
+@router.get("/random-card-art", response_model=RandomCardArt)
+async def get_random_card_art() -> RandomCardArt:
+    db = get_database()
+    decks = [deck async for deck in db.decks.find()]
+    if not decks:
+        raise HTTPException(status_code=404, detail="No saved decks found.")
+
+    random.shuffle(decks)
+
+    for deck in decks:
+        active_version_id = deck.get("active_version_id")
+        if not active_version_id:
+            continue
+
+        version = await db.deck_versions.find_one({"_id": active_version_id})
+        if not version:
+            continue
+
+        art_cards = [
+            card
+            for card in version.get("cards", [])
+            if (card.get("card_data") or {}).get("image_uri")
+        ]
+        if not art_cards:
+            continue
+
+        card = random.choice(art_cards)
+        card_data = card.get("card_data") or {}
+        return RandomCardArt(
+            deck_id=str(deck["_id"]),
+            deck_name=version.get("name") or deck.get("name") or "Untitled Deck",
+            card_name=card_data.get("name") or card.get("name") or "Random card art",
+            image_uri=card_data["image_uri"],
+            card=ParsedDeckCard(**card),
+        )
+
+    raise HTTPException(status_code=404, detail="No card art found.")
 
 
 @router.get("/{deck_id}/versions", response_model=list[DeckVersionSummary])

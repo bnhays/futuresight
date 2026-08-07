@@ -15,33 +15,9 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
   </section>
 
   <script>
-    const API_URL = import.meta.env.PUBLIC_API_URL || "http://localhost:8000";
+    import { API_URL, formatDeckFormat, formatShortDateTime, renderColorSquares } from "../../scripts/deck-ui.js";
+
     const allDecksList = document.querySelector("#all-decks-list");
-
-    function formatFormat(format) {
-      if (!format) return "";
-      return format.charAt(0).toUpperCase() + format.slice(1);
-    }
-
-    function formatUpdatedAt(updatedAt) {
-      if (!updatedAt) return "";
-      const date = new Date(updatedAt);
-      if (Number.isNaN(date.getTime())) return "";
-      return date.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-    }
-
-    function renderColorSquares(colors) {
-      const wrapper = document.createElement("span");
-      wrapper.className = "color-squares";
-
-      (colors || []).forEach((color) => {
-        const square = document.createElement("span");
-        square.className = `color-square color-${String(color).toLowerCase()}`;
-        wrapper.append(square);
-      });
-
-      return wrapper;
-    }
 
     function renderThumbnailCard(deck) {
       const card = deck.thumbnail_card;
@@ -94,14 +70,14 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 
         const updatedAt = document.createElement("span");
         updatedAt.className = "deck-list-updated";
-        updatedAt.textContent = `Edited ${formatUpdatedAt(deck.updated_at)}`;
+        updatedAt.textContent = `Edited ${formatShortDateTime(deck.updated_at)}`;
         updatedAt.hidden = !deck.updated_at;
 
         const meta = document.createElement("span");
         meta.className = "recent-deck-meta";
         meta.append(
           renderColorSquares(deck.color_identity || []),
-          document.createTextNode(formatFormat(deck.format || "unknown")),
+          document.createTextNode(formatDeckFormat(deck.format || "unknown")),
         );
 
         const description = document.createElement("span");

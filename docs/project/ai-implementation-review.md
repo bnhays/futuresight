@@ -21,7 +21,7 @@ The review also identified implementation caveats that should remain visible, in
 
 ## Accepted Suggestion
 
-The accepted AI-assisted direction was to keep the prototype focused on the working deck-management flow instead of expanding scope into every planned feature. This included documenting full legality checks, backend statistics, richer matchup and tournament tracking, and version comparison as deferred work, while recognizing that linear version history and basic per-version matchup logging are now part of the prototype.
+The accepted AI-assisted direction was to keep the prototype focused on the working deck-management flow instead of expanding scope into every planned feature. This included documenting full legality checks, expanded statistics, richer matchup and tournament tracking, and version comparison as deferred work, while recognizing that linear version history, basic per-version matchup logging, and basic API-backed deck statistics are now part of the prototype.
 
 I also accepted AI guidance around using Astro pages with client-side JavaScript for the current interface, while keeping API responsibilities in FastAPI.
 

@@ -34,7 +34,7 @@ Manual verification was performed against the Docker-based application build.
 - Version list items should open preview-only deck detail pages.
 - Historical preview pages should not allow editing or quick quantity updates.
 - Restoring an older version should duplicate it as a new latest version.
-- Deck detail pages should show basic client-side deck analysis panels for mana curve and land-produced-color distribution.
+- Deck detail pages should show basic deck analysis panels for API-provided mana curve and land-produced-color distribution.
 - Matchup history should show entries logged for the selected deck version.
 - The matchup form should reject blank fields and save entries with opponent deck, tournament, outcome, and date.
 - Quick quantity updates should mark the deck as changed and allow the updated decklist to be saved.
@@ -62,4 +62,4 @@ Manual verification was performed against the Docker-based application build.
 
 The prototype satisfies the core project goal for this update: users can build, run, import, inspect, edit, update, and delete decks through the full stack. The remaining issues are visual rendering and layout polish rather than blockers for the primary deck-management workflow.
 
-Future work should improve edge-case mana rendering, tighten dense row layout behavior, and continue the planned implementation of deferred features such as legality checks, backend statistics, richer matchup and tournament tracking, and version comparison.
+Future work should improve edge-case mana rendering, tighten dense row layout behavior, and continue the planned implementation of deferred features such as legality checks, expanded statistics, richer matchup and tournament tracking, and version comparison.

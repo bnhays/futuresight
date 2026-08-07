@@ -18,25 +18,13 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
   </section>
 
   <script>
-    const API_URL = import.meta.env.PUBLIC_API_URL || "http://localhost:8000";
+    import { API_URL, formatFullDateTime } from "../../scripts/deck-ui.js";
+
     const deckId = new URLSearchParams(window.location.search).get("id");
     const versionsTitle = document.querySelector("#versions-title");
     const versionsMeta = document.querySelector("#versions-meta");
     const backToDeck = document.querySelector("#back-to-deck");
     const deckVersionsList = document.querySelector("#deck-versions-list");
-
-    function formatDateTime(value) {
-      if (!value) return "";
-      const date = new Date(value);
-      if (Number.isNaN(date.getTime())) return "";
-      return date.toLocaleString(undefined, {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-      });
-    }
 
     function versionLabel(version) {
       return version.version_name ? `v${version.version_number} - ${version.version_name}` : `v${version.version_number}`;
@@ -185,7 +173,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 
       const createdAt = document.createElement("span");
       createdAt.className = "deck-list-updated";
-      createdAt.textContent = `Saved ${formatDateTime(version.created_at)}`;
+      createdAt.textContent = `Saved ${formatFullDateTime(version.created_at)}`;
       createdAt.hidden = !version.created_at;
 
       const note = document.createElement("span");
