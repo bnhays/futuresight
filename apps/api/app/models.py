@@ -31,6 +31,57 @@ class DeckVersionCardChange(BaseModel):
     quantity: int = 0
 
 
+class DeckCardGroup(BaseModel):
+    key: str
+    label: str
+    cards: list[ParsedDeckCard] = Field(default_factory=list)
+
+
+class DeckGroupedCards(BaseModel):
+    mainboard: list[DeckCardGroup] = Field(default_factory=list)
+    sideboard: list[ParsedDeckCard] = Field(default_factory=list)
+
+
+class ManaCurveBucket(BaseModel):
+    mana_value: int
+    label: str
+    count: int = 0
+
+
+class LandColorProduction(BaseModel):
+    color: str
+    label: str
+    count: int = 0
+    percentage: int = 0
+
+
+class CardTypeCount(BaseModel):
+    key: str
+    label: str
+    count: int = 0
+
+
+class CardTypeBreakdown(BaseModel):
+    section: str
+    label: str
+    total: int = 0
+    types: list[CardTypeCount] = Field(default_factory=list)
+
+
+class DeckStats(BaseModel):
+    mana_curve: list[ManaCurveBucket] = Field(default_factory=list)
+    land_color_production: list[LandColorProduction] = Field(default_factory=list)
+    card_type_breakdown: list[CardTypeBreakdown] = Field(default_factory=list)
+
+
+class RandomCardArt(BaseModel):
+    deck_id: str
+    deck_name: str
+    card_name: str
+    image_uri: str
+    card: ParsedDeckCard
+
+
 class DeckSummary(BaseModel):
     id: str
     name: str
@@ -57,20 +108,10 @@ class DeckVersionSummary(BaseModel):
 class MatchupHistoryEntry(BaseModel):
     id: str
     opponent_deck: str
+    opponent_deck_id: str | None = None
     tournament_name: str
     outcome: str
     created_at: str | None = None
-
-
-class Matchup(BaseModel):
-    opponent: str | None = None
-    opponent_deck: str | DeckSummary
-    played_deck: DeckSummary
-    sideboards: list[list[ParsedDeckCard]] = Field(default_factory=list)
-
-
-class Tournament(BaseModel):
-    pass
 
 
 class DeckImportMetrics(BaseModel):
@@ -91,6 +132,8 @@ class DeckDetail(DeckSummary):
     version_created_at: str | None = None
     versions: list[DeckVersionSummary] = Field(default_factory=list)
     cards: list[ParsedDeckCard] = Field(default_factory=list)
+    grouped_cards: DeckGroupedCards | None = None
+    stats: DeckStats | None = None
     matchups: list[MatchupHistoryEntry] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
     import_metrics: DeckImportMetrics | None = None

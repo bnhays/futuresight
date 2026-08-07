@@ -79,7 +79,7 @@ Sideboard
         <aside class="random-card-panel" aria-labelledby="random-card-heading">
           <div class="panel-heading">
             <h2 id="random-card-heading">Random Card Art</h2>
-            <button id="refresh-card-art" class="action-button muted hollow-button compact-action" type="button">Refresh</button>
+            <button id="refresh-card-art" class="action-button version-button hollow-button compact-action" type="button">Refresh</button>
           </div>
           <div id="random-card-art" class="random-card-art" aria-live="polite">
             <p class="empty-state">Loading card art...</p>
@@ -90,7 +90,7 @@ Sideboard
   </section>
 
   <script>
-    const API_URL = import.meta.env.PUBLIC_API_URL || "http://localhost:8000";
+    import { API_URL, formatDeckFormat, formatShortDateTime, renderColorSquares } from "../scripts/deck-ui.js";
 
     const form = document.querySelector("#import-form");
     const deckName = document.querySelector("#deck-name");
@@ -103,36 +103,6 @@ Sideboard
     const recentDecksList = document.querySelector("#recent-decks-list");
     const randomCardArt = document.querySelector("#random-card-art");
     const refreshCardArtButton = document.querySelector("#refresh-card-art");
-    const RANDOM_CARD_ART_BUFFER_SIZE = 5;
-    const randomCardArtBuffer = [];
-    let randomCardArtDecks = null;
-    let randomCardArtDecksPromise = null;
-    let randomCardArtFillPromise = null;
-
-    function formatFormat(format) {
-      if (!format) return "";
-      return format.charAt(0).toUpperCase() + format.slice(1);
-    }
-
-    function formatUpdatedAt(updatedAt) {
-      if (!updatedAt) return "";
-      const date = new Date(updatedAt);
-      if (Number.isNaN(date.getTime())) return "";
-      return date.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-    }
-
-    function renderColorSquares(colors) {
-      const wrapper = document.createElement("span");
-      wrapper.className = "color-squares";
-
-      (colors || []).forEach((color) => {
-        const square = document.createElement("span");
-        square.className = `color-square color-${String(color).toLowerCase()}`;
-        wrapper.append(square);
-      });
-
-      return wrapper;
-    }
 
     function renderRecentDecks(decks) {
       recentDecksList.innerHTML = "";
@@ -159,13 +129,13 @@ Sideboard
 
         const updatedAt = document.createElement("span");
         updatedAt.className = "recent-deck-updated";
-        updatedAt.textContent = formatUpdatedAt(deck.updated_at);
+        updatedAt.textContent = formatShortDateTime(deck.updated_at);
 
         const meta = document.createElement("span");
         meta.className = "recent-deck-meta";
         meta.append(
           renderColorSquares(deck.color_identity || []),
-          document.createTextNode(formatFormat(deck.format || "unknown")),
+          document.createTextNode(formatDeckFormat(deck.format || "unknown")),
         );
 
         const description = document.createElement("span");
@@ -196,17 +166,6 @@ Sideboard
       }
     }
 
-    function shuffle(items) {
-      return items
-        .map((item) => ({ item, sort: Math.random() }))
-        .sort((a, b) => a.sort - b.sort)
-        .map(({ item }) => item);
-    }
-
-    function getCardsWithArt(deck) {
-      return (deck.cards || []).filter((card) => card.card_data?.image_uri);
-    }
-
     function preloadImage(src) {
       return new Promise((resolve, reject) => {
         const image = new Image();
@@ -216,77 +175,16 @@ Sideboard
       });
     }
 
-    async function getRandomCardArtDecks() {
-      if (randomCardArtDecks) return randomCardArtDecks;
-      if (randomCardArtDecksPromise) return randomCardArtDecksPromise;
-
-      randomCardArtDecksPromise = (async () => {
-        const response = await fetch(`${API_URL}/decks`);
-        const decks = await response.json();
-        if (!response.ok) {
-          throw new Error(decks.detail || "Could not load decks.");
-        }
-
-        randomCardArtDecks = Array.isArray(decks) ? decks : [];
-        return randomCardArtDecks;
-      })().finally(() => {
-        randomCardArtDecksPromise = null;
-      });
-
-      return randomCardArtDecksPromise;
-    }
-
-    async function loadRandomCardArtCandidate() {
-      const decks = await getRandomCardArtDecks();
-      const shuffledDecks = shuffle(decks);
-
-      for (const deckSummary of shuffledDecks) {
-        const detailResponse = await fetch(`${API_URL}/decks/${deckSummary.id}`);
-        const deck = await detailResponse.json();
-        if (!detailResponse.ok) continue;
-
-        const cardsWithArt = getCardsWithArt(deck);
-        if (!cardsWithArt.length) continue;
-
-        for (const card of shuffle(cardsWithArt)) {
-          try {
-            await preloadImage(card.card_data.image_uri);
-            return { deck, card };
-          } catch {
-            continue;
-          }
-        }
-      }
-
-      return null;
-    }
-
-    async function fillRandomCardArtBuffer() {
-      if (randomCardArtFillPromise) return randomCardArtFillPromise;
-
-      randomCardArtFillPromise = (async () => {
-        while (randomCardArtBuffer.length < RANDOM_CARD_ART_BUFFER_SIZE) {
-          const candidate = await loadRandomCardArtCandidate();
-          if (!candidate) break;
-          randomCardArtBuffer.push(candidate);
-        }
-      })().finally(() => {
-        randomCardArtFillPromise = null;
-      });
-
-      return randomCardArtFillPromise;
-    }
-
-    function renderRandomCardArt(deck, card) {
+    function renderRandomCardArt(candidate) {
       randomCardArt.innerHTML = "";
 
       const image = document.createElement("img");
-      image.src = card.card_data.image_uri;
-      image.alt = card.card_data.name || card.name || "Random card art";
+      image.src = candidate.image_uri;
+      image.alt = candidate.card_name || "Random card art";
 
       const source = document.createElement("p");
       source.className = "random-card-source";
-      source.textContent = `From ${deck.name || "Untitled Deck"}`;
+      source.textContent = `From ${candidate.deck_name || "Untitled Deck"}`;
 
       randomCardArt.append(image, source);
     }
@@ -303,30 +201,22 @@ Sideboard
       refreshCardArtButton.disabled = true;
 
       try {
-        if (!randomCardArtBuffer.length) {
-          renderRandomCardMessage("Loading card art...");
-          const candidate = await loadRandomCardArtCandidate();
-          if (candidate) {
-            randomCardArtBuffer.push(candidate);
-          }
+        const response = await fetch(`${API_URL}/decks/random-card-art`);
+        const candidate = await response.json();
+        if (!response.ok) {
+          throw new Error(candidate.detail || "Card art is unavailable.");
         }
 
-        const candidate = randomCardArtBuffer.shift();
-        if (candidate) {
-          renderRandomCardArt(candidate.deck, candidate.card);
-          fillRandomCardArtBuffer().catch(() => {});
-          return;
+        await preloadImage(candidate.image_uri);
+        renderRandomCardArt(candidate);
+      } catch (error) {
+        let message = "Card art is unavailable.";
+        if (error instanceof Error && error.message === "No saved decks found.") {
+          message = "No saved decks yet.";
+        } else if (error instanceof Error && error.message === "No card art found.") {
+          message = "Saved decks do not have card art yet.";
         }
-
-        const decks = await getRandomCardArtDecks();
-        if (!decks.length) {
-          renderRandomCardMessage("No saved decks yet.");
-          return;
-        }
-
-        renderRandomCardMessage("Saved decks do not have card art yet.");
-      } catch {
-        renderRandomCardMessage("Card art is unavailable.");
+        renderRandomCardMessage(message);
       } finally {
         refreshCardArtButton.disabled = false;
       }

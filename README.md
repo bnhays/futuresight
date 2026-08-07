@@ -18,8 +18,8 @@ The prototype is intended to prove the core full-stack workflow: an Astro client
 
 The project is structured as a small full-stack repo:
 
-- `apps/web`: Astro frontend for deck import, saved deck browsing, deck detail views, card inspection, deck editing, version history, basic matchup history, and client-side deck analysis panels.
-- `apps/api`: FastAPI backend for deck import/update/delete logic, version snapshots, basic per-version matchup logging, Scryfall lookup, and cached card data. Placeholder modules still exist for full legality checks, backend statistics, and broader matchup/tournament workflows.
+- `apps/web`: Astro frontend for deck import, saved deck browsing, deck detail views, card inspection, deck editing, version history, basic matchup history, and deck analysis panel rendering.
+- `apps/api`: FastAPI backend for deck import/update/delete logic, version snapshots, basic per-version matchup logging, Scryfall lookup, cached card data, random card art selection, card grouping, and basic deck statistics. Placeholder modules still exist for full legality checks and broader matchup/tournament workflows.
 - `mongo`: MongoDB service managed through Docker Compose.
 
 ## Dependencies
@@ -77,7 +77,7 @@ make logs
 
 When the full stack is running:
 
-- The home page displays a deck import form, recent saved decks, and a random card-art panel sourced from saved decks.
+- The home page displays a deck import form, recent saved decks, and a random card-art panel sourced from the API.
 - A user can paste a decklist, provide optional deck metadata, and import the deck.
 - The API parses mainboard and sideboard lines, resolves card metadata through Scryfall, caches card records in MongoDB, and stores the imported deck as version 1.
 - Imported decks open in a detail view with grouped card tables, card images when available, mana cost display, type information, color identity, oracle text, Scryfall links, mana curve, land-produced-color summary, and matchup history.
@@ -96,7 +96,7 @@ The following features are represented in the project direction or placeholder m
 - Full format legality enforcement.
 - Side-by-side version comparison.
 - Full tournament tracking and matchup analysis beyond basic per-version matchup entries.
-- Completed backend deck statistics beyond the current client-side mana curve and land-produced-color panels.
+- Richer deck statistics beyond the current mana curve and land-produced-color panels.
 - A complete cached-card browsing interface.
 - Advanced validation for every possible decklist format.
 - Polished handling for unusual mana-cost displays and dense table rows.

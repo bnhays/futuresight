@@ -6,7 +6,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
   <section class="decks-shell">
     <div class="page-heading">
       <h1>Decks</h1>
-      <a class="button-link action-button muted" href="/">Back</a>
+      <a class="button-link action-button muted compact compact-action" href="/">Back</a>
     </div>
 
     <div id="all-decks-list" class="recent-decks-list" aria-live="polite">
@@ -15,33 +15,9 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
   </section>
 
   <script>
-    const API_URL = import.meta.env.PUBLIC_API_URL || "http://localhost:8000";
+    import { API_URL, formatDeckFormat, formatShortDateTime, renderColorSquares } from "../../scripts/deck-ui.js";
+
     const allDecksList = document.querySelector("#all-decks-list");
-
-    function formatFormat(format) {
-      if (!format) return "";
-      return format.charAt(0).toUpperCase() + format.slice(1);
-    }
-
-    function formatUpdatedAt(updatedAt) {
-      if (!updatedAt) return "";
-      const date = new Date(updatedAt);
-      if (Number.isNaN(date.getTime())) return "";
-      return date.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
-    }
-
-    function renderColorSquares(colors) {
-      const wrapper = document.createElement("span");
-      wrapper.className = "color-squares";
-
-      (colors || []).forEach((color) => {
-        const square = document.createElement("span");
-        square.className = `color-square color-${String(color).toLowerCase()}`;
-        wrapper.append(square);
-      });
-
-      return wrapper;
-    }
 
     function renderThumbnailCard(deck) {
       const card = deck.thumbnail_card;
@@ -92,24 +68,25 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         name.className = "recent-deck-name";
         name.textContent = deck.name || "Untitled Deck";
 
+        const title = document.createElement("span");
+        title.className = "deck-list-title";
+        title.append(name, renderColorSquares(deck.color_identity || []));
+
         const updatedAt = document.createElement("span");
         updatedAt.className = "deck-list-updated";
-        updatedAt.textContent = `Edited ${formatUpdatedAt(deck.updated_at)}`;
+        updatedAt.textContent = `Edited ${formatShortDateTime(deck.updated_at)}`;
         updatedAt.hidden = !deck.updated_at;
 
         const meta = document.createElement("span");
         meta.className = "recent-deck-meta";
-        meta.append(
-          renderColorSquares(deck.color_identity || []),
-          document.createTextNode(formatFormat(deck.format || "unknown")),
-        );
+        meta.textContent = formatDeckFormat(deck.format || "unknown");
 
         const description = document.createElement("span");
         description.className = "recent-deck-description";
         description.textContent = deck.description || "";
         description.hidden = !deck.description;
 
-        deckInfo.append(name, updatedAt, description, meta);
+        deckInfo.append(title, updatedAt, description, meta);
 
         const thumbnail = renderThumbnailCard(deck);
         if (thumbnail) {
@@ -123,12 +100,12 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         actions.className = "deck-list-actions";
 
         const versionsLink = document.createElement("a");
-        versionsLink.className = "action-button version-button hollow-button deck-list-delete";
+        versionsLink.className = "action-button version-button hollow-button deck-list-delete compact-action";
         versionsLink.href = `/decks/versions?id=${encodeURIComponent(deck.id)}`;
         versionsLink.textContent = "Versions";
 
         const deleteButton = document.createElement("button");
-        deleteButton.className = "action-button danger-button hollow-button deck-list-delete";
+        deleteButton.className = "action-button danger-button hollow-button deck-list-delete compact-action";
         deleteButton.type = "button";
         deleteButton.textContent = "Delete";
         deleteButton.addEventListener("click", (event) => {

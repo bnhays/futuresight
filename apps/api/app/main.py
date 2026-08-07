@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app import cards, decks, matchups
+from app import decks
 from app.config import settings
 from app.db import ensure_indexes
 
@@ -16,8 +16,6 @@ app.add_middleware(
 )
 
 app.include_router(decks.router, prefix="/decks", tags=["decks"])
-app.include_router(matchups.router, prefix="/matchups", tags=["matchups"])
-app.include_router(cards.router, prefix="/cards", tags=["cards"])
 
 
 @app.on_event("startup")

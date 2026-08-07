@@ -9,7 +9,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         <h1 id="versions-title">Deck Versions</h1>
         <p id="versions-meta" class="deck-detail-description">Loading versions...</p>
       </div>
-      <a id="back-to-deck" class="button-link action-button muted" href="/decks">Back</a>
+      <a id="back-to-deck" class="button-link action-button muted compact compact-action" href="/decks">Back</a>
     </div>
 
     <div id="deck-versions-list" class="recent-decks-list" aria-live="polite">
@@ -18,25 +18,20 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
   </section>
 
   <script>
-    const API_URL = import.meta.env.PUBLIC_API_URL || "http://localhost:8000";
+    import { API_URL, formatFullDateTime } from "../../scripts/deck-ui.js";
+
     const deckId = new URLSearchParams(window.location.search).get("id");
     const versionsTitle = document.querySelector("#versions-title");
     const versionsMeta = document.querySelector("#versions-meta");
     const backToDeck = document.querySelector("#back-to-deck");
     const deckVersionsList = document.querySelector("#deck-versions-list");
 
-    function formatDateTime(value) {
-      if (!value) return "";
-      const date = new Date(value);
-      if (Number.isNaN(date.getTime())) return "";
-      return date.toLocaleString(undefined, {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-      });
-    }
+    backToDeck.addEventListener("click", (event) => {
+      if (window.history.length <= 1) return;
+
+      event.preventDefault();
+      window.history.back();
+    });
 
     function versionLabel(version) {
       return version.version_name ? `v${version.version_number} - ${version.version_name}` : `v${version.version_number}`;
@@ -100,12 +95,12 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       actions.className = "deck-list-actions";
 
       const saveButton = document.createElement("button");
-      saveButton.className = "action-button primary-button hollow-button";
+      saveButton.className = "action-button primary-button hollow-button compact-action";
       saveButton.type = "submit";
       saveButton.textContent = "Save";
 
       const cancelButton = document.createElement("button");
-      cancelButton.className = "action-button muted hollow-button";
+      cancelButton.className = "action-button muted hollow-button compact-action";
       cancelButton.type = "button";
       cancelButton.textContent = "Cancel";
       cancelButton.addEventListener("click", () => {
@@ -185,7 +180,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 
       const createdAt = document.createElement("span");
       createdAt.className = "deck-list-updated";
-      createdAt.textContent = `Saved ${formatDateTime(version.created_at)}`;
+      createdAt.textContent = `Saved ${formatFullDateTime(version.created_at)}`;
       createdAt.hidden = !version.created_at;
 
       const note = document.createElement("span");
@@ -207,7 +202,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       const summary = renderVersionSummary(version);
 
       const summaryButton = document.createElement("button");
-      summaryButton.className = "action-button primary-button hollow-button deck-list-delete version-summary-button";
+      summaryButton.className = "action-button primary-button hollow-button deck-list-delete version-summary-button compact-action";
       summaryButton.type = "button";
       summaryButton.textContent = "Summary";
       summaryButton.setAttribute("aria-expanded", "false");
@@ -221,7 +216,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       });
 
       const editButton = document.createElement("button");
-      editButton.className = "action-button success-button hollow-button deck-list-delete";
+      editButton.className = "action-button success-button hollow-button deck-list-delete compact-action";
       editButton.type = "button";
       editButton.textContent = "Edit";
       editButton.addEventListener("click", (event) => {

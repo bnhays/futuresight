@@ -11,15 +11,17 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         <p id="deck-meta">Loading deck...</p>
       </div>
       <div class="deck-actions">
-        <a id="back-link" class="button-link action-button muted" href="/">Back</a>
-        <button id="edit-deck" class="action-button success-button hollow-button" type="button">Edit</button>
-        <a id="versions-deck" class="action-button version-button hollow-button" href="/decks">Versions</a>
-        <button id="restore-version" class="action-button primary-button hollow-button" type="button" hidden>
+        <a id="back-link" class="button-link action-button muted compact compact-action" href="/">Back</a>
+        <button id="edit-deck" class="action-button success-button hollow-button compact-action" type="button">Edit</button>
+        <a id="versions-deck" class="action-button version-button hollow-button compact-action" href="/decks">Versions</a>
+        <button id="restore-version" class="action-button primary-button hollow-button compact-action" type="button" hidden>
           Restore as Latest
         </button>
-        <button id="delete-deck" class="action-button danger-button hollow-button" type="button">Delete</button>
+        <button id="delete-deck" class="action-button danger-button hollow-button compact-action" type="button">Delete</button>
       </div>
     </div>
+
+    <div id="deck-content-divider" class="deck-content-divider" hidden></div>
 
     <section id="deck-edit-panel" class="deck-edit-panel" hidden>
       <form id="deck-edit-form" class="import-form deck-edit-form">
@@ -87,10 +89,14 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
   </section>
 
   <script>
-    const API_URL = import.meta.env.PUBLIC_API_URL || "http://localhost:8000";
+    import { getListType, renderCardTypeBreakdown, renderLandColorProduction, renderManaCurve } from "../../scripts/deck-stats.js";
+    import { renderHoverPreview, showInspectCard } from "../../scripts/deck-inspect.js";
+    import { renderMatchupHistory as renderDeckMatchupHistory } from "../../scripts/deck-matchups.js";
+    import { cloneDeck, deckToText, groupBySection, normalizeText } from "../../scripts/deck-text.js";
+    import { API_URL, formatDeckFormat, renderColorSquares as renderDeckColorSquares } from "../../scripts/deck-ui.js";
+    import { renderManaCost } from "../../scripts/mana.js";
+
     const COLOR_ORDER = ["W", "U", "B", "R", "G", "C"];
-    const LAND_COLOR_ORDER = ["W", "U", "B", "R", "G"];
-    const MAINBOARD_TYPE_ORDER = ["Creature", "Planeswalker", "Artifact", "Enchantment", "Instant", "Sorcery", "Land"];
     const COLOR_LABELS = {
       W: "White",
       U: "Blue",
@@ -108,6 +114,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     const deckTitle = document.querySelector("#deck-title");
     const deckDescription = document.querySelector("#deck-description");
     const deckMeta = document.querySelector("#deck-meta");
+    const deckContentDivider = document.querySelector("#deck-content-divider");
     const deckPanel = document.querySelector("#deck-panel");
     const deckSections = document.querySelector("#deck-sections");
     const inspectPanel = document.querySelector("#inspect-panel");
@@ -134,19 +141,8 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     let initialDeck = null;
     let inspectedCardKey = null;
     let matchupHistoryShowingAll = false;
-
-    function formatDateTime(value) {
-      if (!value) return "";
-      const date = new Date(value);
-      if (Number.isNaN(date.getTime())) return "";
-      return date.toLocaleString(undefined, {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-        hour: "numeric",
-        minute: "2-digit",
-      });
-    }
+    let activeMatchupId = null;
+    let libraryDecks = null;
 
     function versionLabel(version) {
       return version.version_name ? `v${version.version_number} - ${version.version_name}` : `v${version.version_number}`;
@@ -154,15 +150,6 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 
     function isPreviewMode(deck = currentDeck) {
       return Boolean(selectedVersionId || (deck?.selected_version_id && deck?.active_version_id && deck.selected_version_id !== deck.active_version_id));
-    }
-
-    function groupBySection(cards) {
-      return cards.reduce((groups, card) => {
-        const section = card.section || "mainboard";
-        groups[section] = groups[section] || [];
-        groups[section].push(card);
-        return groups;
-      }, {});
     }
 
     function sectionLabel(section) {
@@ -183,11 +170,6 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       return labels[type] || type || "Other";
     }
 
-    function formatFormat(format) {
-      if (!format) return "";
-      return format.charAt(0).toUpperCase() + format.slice(1);
-    }
-
     function getIdentityColors(cards) {
       const colors = new Set();
       cards.forEach((card) => {
@@ -198,17 +180,14 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     }
 
     function renderColorSquares(colors) {
-      const wrapper = document.createElement("span");
-      wrapper.className = "color-squares";
+      return renderDeckColorSquares(colors, { order: COLOR_ORDER, labels: COLOR_LABELS });
+    }
 
-      COLOR_ORDER.filter((color) => colors?.includes(color)).forEach((color) => {
-        const square = document.createElement("span");
-        square.className = `color-square color-${color.toLowerCase()}`;
-        square.title = COLOR_LABELS[color] || color;
-        wrapper.append(square);
-      });
-
-      return wrapper;
+    function mainboardCardCount(cards) {
+      return (cards || []).reduce((total, card) => {
+        if (card.section === "sideboard") return total;
+        return total + Number(card.quantity || 0);
+      }, 0);
     }
 
     function renderTitle(deck) {
@@ -217,20 +196,22 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       const titleText = document.createElement("span");
       titleText.textContent = deck.name || "Untitled Deck";
 
+      deckTitle.append(titleText);
       if (colors.children.length) {
         deckTitle.append(colors);
       }
-      deckTitle.append(titleText);
       deckDescription.textContent = deck.description || "";
       deckDescription.hidden = !deck.description;
+      const cardCount = mainboardCardCount(deck.cards || []);
+      const cardCountText = ` | ${cardCount} ${cardCount === 1 ? "card" : "cards"}`;
       const versionText = deck.version_number ? ` | ${versionLabel(deck)}` : "";
-      deckMeta.textContent = `Format: ${formatFormat(deck.format || "modern")}${versionText}`;
+      deckMeta.textContent = `Format: ${formatDeckFormat(deck.format || "modern")}${versionText}${cardCountText}`;
     }
 
     function applyDeckMode(deck) {
       const previewMode = isPreviewMode(deck);
       backLink.href = previewMode && deckId ? `/decks/versions?id=${encodeURIComponent(deckId)}` : "/";
-      backLink.textContent = previewMode ? "Versions" : "Back";
+      backLink.textContent = "Back";
       versionsDeckButton.href = deckId ? `/decks/versions?id=${encodeURIComponent(deckId)}` : "/decks";
       editDeckButton.hidden = previewMode;
       deleteDeckButton.hidden = previewMode;
@@ -242,32 +223,12 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       updateUnsavedQuantityBar();
     }
 
-    function deckToText(cards) {
-      const groups = groupBySection(cards || []);
-      const lines = [];
+    backLink.addEventListener("click", (event) => {
+      if (window.history.length <= 1) return;
 
-      (groups.mainboard || []).forEach((card) => {
-        lines.push(`${card.quantity} ${card.name}`);
-      });
-
-      if ((groups.sideboard || []).length) {
-        if (lines.length) lines.push("");
-        lines.push("Sideboard");
-        groups.sideboard.forEach((card) => {
-          lines.push(`${card.quantity} ${card.name}`);
-        });
-      }
-
-      return lines.join("\n");
-    }
-
-    function cloneDeck(deck) {
-      return JSON.parse(JSON.stringify(deck));
-    }
-
-    function normalizeText(value) {
-      return String(value || "").trim();
-    }
+      event.preventDefault();
+      window.history.back();
+    });
 
     function currentDecklistText() {
       if (!currentDeck) return "";
@@ -347,547 +308,77 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       deckViewShell.insertBefore(warningsPanel, deckPanel);
     }
 
-    function manaSymbolClass(value) {
-      const normalized = String(value || "")
-        .trim()
-        .toLowerCase()
-        .replace(/\//g, "");
-
-      const aliases = {
-        "∞": "infinity",
-        "½": "half",
-      };
-
-      return aliases[normalized] || normalized;
-    }
-
-    function manaColorClass(value) {
-      const normalized = String(value || "").trim().toLowerCase();
-      const colorClasses = {
-        w: "white",
-        u: "blue",
-        b: "black",
-        r: "red",
-        g: "green",
-        c: "colorless",
-        s: "snow",
-      };
-
-      return colorClasses[normalized] || "generic";
-    }
-
-    function renderSpecialManaSymbol(value) {
-      const normalized = String(value || "").trim();
-      const upperValue = normalized.toUpperCase();
-      const symbolEl = document.createElement("span");
-      symbolEl.className = "mana-symbol mana-symbol-custom";
-      symbolEl.setAttribute("role", "img");
-      symbolEl.setAttribute("aria-label", normalized);
-      symbolEl.title = normalized;
-
-      if (upperValue === "S") {
-        symbolEl.classList.add("mana-symbol-snow");
-        const snowIcon = document.createElement("i");
-        snowIcon.className = "mana-symbol-mark ms ms-s";
-        symbolEl.append(snowIcon);
-        return symbolEl;
-      }
-
-      const parts = normalized.split("/");
-      const isPhyrexian = parts.at(-1)?.toUpperCase() === "P";
-
-      if (isPhyrexian && parts.length === 2) {
-        const colorClass = manaColorClass(parts[0]);
-        symbolEl.classList.add(
-          "mana-symbol-phyrexian",
-          "mana-symbol-solid",
-          `mana-solid-${colorClass}`,
-        );
-
-        const phyrexianIcon = document.createElement("i");
-        phyrexianIcon.className = "mana-symbol-mark mana-symbol-phyrexian-mark ms ms-p";
-        symbolEl.append(phyrexianIcon);
-        return symbolEl;
-      }
-
-      if (isPhyrexian && parts.length === 3) {
-        const leftClass = manaColorClass(parts[0]);
-        const rightClass = manaColorClass(parts[1]);
-        symbolEl.classList.add(
-          "mana-symbol-phyrexian",
-          "mana-symbol-phyrexian-dual",
-          `mana-split-left-${leftClass}`,
-          `mana-split-right-${rightClass}`,
-        );
-
-        const phyrexianIcon = document.createElement("i");
-        phyrexianIcon.className = "mana-symbol-mark mana-symbol-phyrexian-mark ms ms-p";
-        symbolEl.append(phyrexianIcon);
-        return symbolEl;
-      }
-
-      if (parts.length !== 2) return null;
-
-      const [left, right] = parts;
-      const leftClass = manaColorClass(left);
-      const rightClass = manaColorClass(right);
-      symbolEl.classList.add(
-        "mana-symbol-hybrid",
-        `mana-split-left-${leftClass}`,
-        `mana-split-right-${rightClass}`,
-      );
-
-      const leftMark = document.createElement("span");
-      leftMark.className = "mana-symbol-half mana-symbol-half-left";
-      if (/^\d+$/.test(left)) {
-        leftMark.textContent = left;
-      } else {
-        const leftIcon = document.createElement("i");
-        leftIcon.className = `mana-symbol-mark ms ms-${manaSymbolClass(left)}`;
-        leftMark.append(leftIcon);
-      }
-
-      const rightMark = document.createElement("span");
-      rightMark.className = "mana-symbol-half mana-symbol-half-right";
-      if (/^\d+$/.test(right)) {
-        rightMark.textContent = right;
-      } else {
-        const rightIcon = document.createElement("i");
-        rightIcon.className = `mana-symbol-mark ms ms-${manaSymbolClass(right)}`;
-        rightMark.append(rightIcon);
-      }
-
-      symbolEl.append(leftMark, rightMark);
-      return symbolEl;
-    }
-
-    function renderManaCost(manaCost) {
-      const wrapper = document.createElement("span");
-      wrapper.className = "mana-cost";
-      const symbols = String(manaCost || "").match(/\{[^}]+\}/g) || [];
-
-      if (!symbols.length && manaCost) {
-        wrapper.textContent = manaCost;
-        return wrapper;
-      }
-
-      symbols.forEach((symbol) => {
-        const value = symbol.replace(/[{}]/g, "");
-        const specialSymbol = renderSpecialManaSymbol(value);
-        if (specialSymbol) {
-          wrapper.append(specialSymbol);
-          return;
-        }
-
-        const symbolEl = document.createElement("i");
-        symbolEl.className = `mana-symbol ms ms-cost ms-${manaSymbolClass(value)}`;
-        symbolEl.setAttribute("role", "img");
-        symbolEl.setAttribute("aria-label", value);
-        symbolEl.title = value;
-        wrapper.append(symbolEl);
-      });
-
-      return wrapper;
-    }
-
-    function getListType(typeLine) {
-      const cardTypes = String(typeLine || "").split("-")[0] || "";
-      const priorities = ["Creature", "Land", "Planeswalker", "Artifact", "Enchantment", "Instant", "Sorcery"];
-      return priorities.find((type) => new RegExp(`\\b${type}\\b`, "i").test(cardTypes)) || typeLine || "";
-    }
-
-    function groupMainboardByType(cards) {
-      const groups = cards.reduce((typeGroups, card) => {
-        const type = getListType(card.card_data?.type_line || "") || "Other";
-        typeGroups[type] = typeGroups[type] || [];
-        typeGroups[type].push(card);
-        return typeGroups;
-      }, {});
-
-      const orderedTypes = [
-        ...MAINBOARD_TYPE_ORDER.filter((type) => groups[type]?.length),
-        ...Object.keys(groups)
-          .filter((type) => !MAINBOARD_TYPE_ORDER.includes(type))
-          .sort((first, second) => first.localeCompare(second)),
-      ];
-
-      return orderedTypes.map((type) => [type, groups[type]]);
-    }
-
-    function getManaCurveBucket(card) {
-      const type = getListType(card.card_data?.type_line || "");
-      if (type === "Land") return null;
-
-      const manaValue = Number(card.card_data?.cmc ?? 0);
-      if (!Number.isFinite(manaValue)) return 0;
-      return Math.min(Math.max(0, Math.floor(manaValue)), 7);
-    }
-
-    function getManaCurve(cards) {
-      const buckets = Array.from({ length: 8 }, (_, manaValue) => ({
-        manaValue,
-        label: manaValue === 7 ? "7+" : String(manaValue),
-        count: 0,
-      }));
-
-      (cards || []).forEach((card) => {
-        if ((card.section || "mainboard") !== "mainboard") return;
-        const bucket = getManaCurveBucket(card);
-        if (bucket === null) return;
-        buckets[bucket].count += Number(card.quantity || 0);
-      });
-
-      return buckets;
-    }
-
-    function renderManaCurve(cards) {
-      const curve = getManaCurve(cards);
-      const maxCount = Math.max(1, ...curve.map((bucket) => bucket.count));
-
-      const panel = document.createElement("section");
-      panel.className = "mana-curve-panel";
-      panel.setAttribute("aria-labelledby", "mana-curve-heading");
-
-      const heading = document.createElement("h2");
-      heading.id = "mana-curve-heading";
-      heading.textContent = "Mana Curve";
-      panel.append(heading);
-
-      const bars = document.createElement("div");
-      bars.className = "mana-curve-bars";
-
-      curve.forEach((bucket) => {
-        const bar = document.createElement("div");
-        bar.className = "mana-curve-bar";
-
-        const count = document.createElement("span");
-        count.className = "mana-curve-count";
-        count.textContent = String(bucket.count);
-
-        const fill = document.createElement("span");
-        fill.className = "mana-curve-fill";
-        fill.style.height = `${Math.max(0.12, bucket.count / maxCount) * 100}%`;
-
-        const label = document.createElement("span");
-        label.className = "mana-curve-label";
-        label.textContent = bucket.label;
-
-        bar.append(count, fill, label);
-        bars.append(bar);
-      });
-
-      panel.append(bars);
-      return panel;
-    }
-
-    function getProducedManaColors(card) {
-      const data = card.card_data || {};
-      const producedMana = Array.isArray(data.produced_mana) ? data.produced_mana : [];
-      const fallbackColors = Array.isArray(data.color_identity) ? data.color_identity : [];
-      const colors = producedMana.length ? producedMana : fallbackColors;
-      return LAND_COLOR_ORDER.filter((color) => colors.includes(color));
-    }
-
-    function getLandColorProduction(cards) {
-      const production = LAND_COLOR_ORDER.map((color) => ({
-        color,
-        label: COLOR_LABELS[color] || color,
-        count: 0,
-        percentage: 0,
-      }));
-      const productionByColor = Object.fromEntries(production.map((item) => [item.color, item]));
-      let landCount = 0;
-
-      (cards || []).forEach((card) => {
-        if ((card.section || "mainboard") !== "mainboard") return;
-        if (getListType(card.card_data?.type_line || "") !== "Land") return;
-
-        const quantity = Number(card.quantity || 0);
-        if (!Number.isFinite(quantity) || quantity <= 0) return;
-
-        landCount += quantity;
-        getProducedManaColors(card).forEach((color) => {
-          productionByColor[color].count += quantity;
-        });
-      });
-
-      production.forEach((item) => {
-        item.percentage = landCount ? Math.round((item.count / landCount) * 100) : 0;
-      });
-
-      return production;
-    }
-
-    function renderLandColorProduction(cards) {
-      const production = getLandColorProduction(cards);
-
-      const panel = document.createElement("section");
-      panel.className = "land-colors-panel";
-      panel.setAttribute("aria-labelledby", "land-colors-heading");
-
-      const heading = document.createElement("h2");
-      heading.id = "land-colors-heading";
-      heading.textContent = "Land Colors";
-      panel.append(heading);
-
-      const bars = document.createElement("div");
-      bars.className = "land-color-bars";
-
-      production.forEach((item) => {
-        const row = document.createElement("div");
-        row.className = "land-color-row";
-
-        const label = document.createElement("span");
-        label.className = "land-color-label";
-        label.textContent = item.label;
-
-        const track = document.createElement("span");
-        track.className = "land-color-track";
-        track.setAttribute("aria-label", `${item.label}: ${item.percentage}% of lands`);
-
-        const fill = document.createElement("span");
-        fill.className = `land-color-fill color-${item.color.toLowerCase()}`;
-        fill.style.width = `${item.percentage}%`;
-        track.append(fill);
-
-        const value = document.createElement("span");
-        value.className = "land-color-value";
-        value.textContent = `${item.percentage}%`;
-
-        row.append(label, track, value);
-        bars.append(row);
-      });
-
-      panel.append(bars);
-      return panel;
-    }
-
     function currentVersionId() {
       return currentDeck?.selected_version_id || currentDeck?.active_version_id || "";
     }
 
-    function matchupDate(value) {
-      if (!value) return "";
-      const date = new Date(value);
-      if (Number.isNaN(date.getTime())) return "";
-      return date.toLocaleDateString(undefined, {
-        month: "short",
-        day: "numeric",
-        year: "numeric",
-      });
-    }
-
-    function renderMatchupCard(matchup) {
-      const card = document.createElement("article");
-      card.className = "matchup-card";
-
-      const opponent = document.createElement("h3");
-      opponent.textContent = matchup.opponent_deck || "Unknown Deck";
-
-      const tournament = document.createElement("p");
-      tournament.className = "matchup-tournament";
-      tournament.textContent = matchup.tournament_name || "Unknown Tournament";
-
-      const meta = document.createElement("p");
-      meta.className = "matchup-meta";
-
-      const outcome = document.createElement("span");
-      outcome.className = "matchup-outcome";
-      outcome.textContent = matchup.outcome || "";
-
-      const playedAt = document.createElement("span");
-      playedAt.textContent = matchupDate(matchup.created_at);
-      playedAt.hidden = !playedAt.textContent;
-
-      meta.append(outcome, playedAt);
-      card.append(opponent, tournament, meta);
-      return card;
-    }
-
-    async function saveMatchup(event, form, status, submitButton) {
-      event.preventDefault();
-      if (!deckId || !currentVersionId()) return;
-
-      const formData = new FormData(form);
-      const payload = {
-        opponent_deck: String(formData.get("opponent_deck") || "").trim(),
-        tournament_name: String(formData.get("tournament_name") || "").trim(),
-        outcome: String(formData.get("outcome") || "").trim(),
-      };
-
-      if (!payload.opponent_deck || !payload.tournament_name || !payload.outcome) {
-        status.textContent = "Fill out all matchup fields.";
-        return;
-      }
-
-      submitButton.disabled = true;
-      status.textContent = "Saving...";
-
-      try {
-        const response = await fetch(
-          `${API_URL}/decks/${deckId}/versions/${currentVersionId()}/matchups`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          },
-        );
-        const matchup = await response.json();
-        if (!response.ok) {
-          throw new Error(matchup.detail || "Could not save matchup.");
-        }
-
-        currentDeck.matchups = [matchup, ...(currentDeck.matchups || [])];
-        initialDeck = cloneDeck(currentDeck);
-        matchupHistoryShowingAll = false;
-        renderDeck(currentDeck.cards || []);
-      } catch (error) {
-        status.textContent = error instanceof Error ? error.message : "Could not save matchup.";
-        submitButton.disabled = false;
-      }
-    }
-
-    function renderMatchupForm(section, formContainer, logButton) {
-      formContainer.innerHTML = "";
-      formContainer.hidden = false;
-      logButton.hidden = true;
-
-      const form = document.createElement("form");
-      form.className = "matchup-form";
-
-      const opponentLabel = document.createElement("label");
-      const opponentText = document.createElement("span");
-      opponentText.textContent = "Opponent Deck";
-      const opponentInput = document.createElement("input");
-      opponentInput.name = "opponent_deck";
-      opponentInput.type = "text";
-      opponentInput.maxLength = 80;
-      opponentInput.autocomplete = "off";
-      opponentLabel.append(opponentText, opponentInput);
-
-      const tournamentLabel = document.createElement("label");
-      const tournamentText = document.createElement("span");
-      tournamentText.textContent = "Tournament";
-      const tournamentInput = document.createElement("input");
-      tournamentInput.name = "tournament_name";
-      tournamentInput.type = "text";
-      tournamentInput.maxLength = 120;
-      tournamentInput.autocomplete = "off";
-      tournamentLabel.append(tournamentText, tournamentInput);
-
-      const outcomeLabel = document.createElement("label");
-      const outcomeText = document.createElement("span");
-      outcomeText.textContent = "Outcome";
-      const outcomeInput = document.createElement("input");
-      outcomeInput.name = "outcome";
-      outcomeInput.type = "text";
-      outcomeInput.maxLength = 20;
-      outcomeInput.placeholder = "3-2";
-      outcomeInput.autocomplete = "off";
-      outcomeLabel.append(outcomeText, outcomeInput);
-
-      const actions = document.createElement("div");
-      actions.className = "matchup-form-actions";
-
-      const submitButton = document.createElement("button");
-      submitButton.className = "action-button primary-button hollow-button";
-      submitButton.type = "submit";
-      submitButton.textContent = "Save";
-
-      const cancelButton = document.createElement("button");
-      cancelButton.className = "action-button muted hollow-button";
-      cancelButton.type = "button";
-      cancelButton.textContent = "Cancel";
-
-      const status = document.createElement("span");
-      status.className = "matchup-status";
-      status.setAttribute("role", "status");
-      status.setAttribute("aria-live", "polite");
-
-      cancelButton.addEventListener("click", () => {
-        formContainer.hidden = true;
-        formContainer.innerHTML = "";
-        logButton.hidden = false;
-      });
-
-      actions.append(submitButton, cancelButton, status);
-      form.append(opponentLabel, tournamentLabel, outcomeLabel, actions);
-      form.addEventListener("submit", (event) => saveMatchup(event, form, status, submitButton));
-
-      formContainer.append(form);
-      section.append(formContainer);
-      opponentInput.focus();
-    }
-
     function renderMatchupHistory() {
-      const section = document.createElement("section");
-      section.className = "matchup-history-panel";
-
-      const header = document.createElement("div");
-      header.className = "panel-heading matchup-history-heading";
-
-      const headingWrap = document.createElement("div");
-      const heading = document.createElement("h2");
-      heading.textContent = "Matchup History";
-      const meta = document.createElement("p");
-      meta.className = "matchup-history-meta";
-      const matchups = currentDeck?.matchups || [];
-      meta.textContent = `${matchups.length} logged ${matchups.length === 1 ? "matchup" : "matchups"} for this version`;
-      headingWrap.append(heading, meta);
-
-      const actions = document.createElement("div");
-      actions.className = "deck-actions";
-
-      const seeAllButton = document.createElement("button");
-      seeAllButton.className = "action-button muted hollow-button";
-      seeAllButton.type = "button";
-      seeAllButton.textContent = matchupHistoryShowingAll ? "Show Recent" : "See All";
-      seeAllButton.hidden = matchups.length <= 5;
-      seeAllButton.addEventListener("click", () => {
-        matchupHistoryShowingAll = !matchupHistoryShowingAll;
-        renderDeck(currentDeck.cards || []);
+      return renderDeckMatchupHistory({
+        apiUrl: API_URL,
+        deckId,
+        currentDeck,
+        currentVersionId,
+        activeMatchupId,
+        libraryDecks,
+        matchupHistoryShowingAll,
+        cloneDeck,
+        getCurrentDeck: () => currentDeck,
+        setCurrentDeck: (deck) => {
+          currentDeck = deck;
+        },
+        setInitialDeck: (deck) => {
+          initialDeck = deck;
+        },
+        setActiveMatchupId: (matchupId) => {
+          activeMatchupId = matchupId;
+        },
+        setLibraryDecks: (decks) => {
+          libraryDecks = decks;
+        },
+        setMatchupHistoryShowingAll: (showingAll) => {
+          matchupHistoryShowingAll = showingAll;
+        },
+        renderDeck,
       });
-
-      const logButton = document.createElement("button");
-      logButton.className = "action-button primary-button hollow-button";
-      logButton.type = "button";
-      logButton.textContent = "Log New";
-
-      actions.append(seeAllButton, logButton);
-      header.append(headingWrap, actions);
-      section.append(header);
-
-      const grid = document.createElement("div");
-      grid.className = "matchup-grid";
-
-      const visibleMatchups = matchupHistoryShowingAll ? matchups : matchups.slice(0, 5);
-      if (visibleMatchups.length) {
-        visibleMatchups.forEach((matchup) => {
-          grid.append(renderMatchupCard(matchup));
-        });
-      } else {
-        const empty = document.createElement("p");
-        empty.className = "empty-state matchup-empty";
-        empty.textContent = "No matchups logged for this version.";
-        grid.append(empty);
-      }
-
-      section.append(grid);
-
-      const formContainer = document.createElement("div");
-      formContainer.className = "matchup-form-container";
-      formContainer.hidden = true;
-
-      logButton.addEventListener("click", () => {
-        renderMatchupForm(section, formContainer, logButton);
-      });
-
-      section.append(formContainer);
-      return section;
     }
 
     function normalizeCardName(name) {
       return String(name || "").trim().toLowerCase().replace(/\s+/g, " ");
+    }
+
+    function cardGroupKey(card) {
+      return `${card.section || "mainboard"}:${normalizeCardName(card.name)}`;
+    }
+
+    function groupCardsByBackendLayout(cards) {
+      const groupedCards = currentDeck?.grouped_cards;
+      const cardsByKey = new Map();
+      (cards || []).forEach((card) => {
+        const key = cardGroupKey(card);
+        const keyCards = cardsByKey.get(key) || [];
+        keyCards.push(card);
+        cardsByKey.set(key, keyCards);
+      });
+
+      const resolveCards = (groupCards) => (groupCards || [])
+        .map((card) => cardsByKey.get(cardGroupKey(card))?.shift())
+        .filter(Boolean);
+
+      if (!groupedCards) {
+        return {
+          mainboard: [{ key: "Mainboard", label: "Mainboard", cards: (cards || []).filter((card) => (card.section || "mainboard") === "mainboard") }],
+          sideboard: (cards || []).filter((card) => (card.section || "mainboard") === "sideboard"),
+        };
+      }
+
+      return {
+        mainboard: (groupedCards.mainboard || []).map((group) => ({
+          key: group.key || group.label || "Other",
+          label: group.label || typeSectionLabel(group.key),
+          cards: resolveCards(group.cards),
+        })),
+        sideboard: resolveCards(groupedCards.sideboard),
+      };
     }
 
     function findThumbnailCard(cards) {
@@ -900,31 +391,10 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       }) || null;
     }
 
-    function renderHoverPreview(card, previewContent) {
-      if (!card || !previewContent) return;
-      const data = card.card_data || {};
-      previewContent.innerHTML = "";
-
-      if (data.image_uri) {
-        const image = document.createElement("img");
-        image.src = data.image_uri;
-        image.alt = data.name || card.name;
-        previewContent.append(image);
-      } else {
-        const placeholder = document.createElement("div");
-        placeholder.className = "deck-card-preview-empty";
-        placeholder.textContent = data.name || card.name;
-        previewContent.append(placeholder);
-      }
-
-      const typeText = document.createElement("p");
-      typeText.textContent = data.type_line || "Unknown";
-      previewContent.append(typeText);
-    }
-
     function renderDeck(cards) {
       deckSections.innerHTML = "";
       deckPanel.hidden = !cards.length;
+      deckContentDivider.hidden = !cards.length;
       let previewContent = null;
 
       function renderDeckSection(section, cardsInSection, headingText, options = {}) {
@@ -947,8 +417,8 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 
         const thead = document.createElement("thead");
         thead.innerHTML = isMainboardLandSection
-          ? "<tr><th>Qty</th><th>Name</th><th>Type</th></tr>"
-          : "<tr><th>Qty</th><th>Name</th><th>Mana</th><th>Type</th></tr>";
+          ? "<tr><th>#</th><th>Name</th><th>Type</th></tr>"
+          : "<tr><th>#</th><th>Name</th><th>Mana</th><th>Type</th></tr>";
         table.append(thead);
 
         const tbody = document.createElement("tbody");
@@ -1020,7 +490,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
               changeCardQuantity(card, -1);
             });
 
-            quantityButtons.append(incrementButton, decrementButton);
+            quantityButtons.append(decrementButton, incrementButton);
             quantityControl.append(quantityButtons, quantityValue);
             quantity.append(quantityControl);
           }
@@ -1057,7 +527,8 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       }
 
       const groups = groupBySection(cards);
-      const hasSideboard = Boolean((groups.sideboard || []).length);
+      const backendGroups = groupCardsByBackendLayout(cards);
+      const hasSideboard = Boolean((backendGroups.sideboard || []).length);
       deckSections.classList.toggle("deck-sections-single", !hasSideboard);
       deckSections.classList.toggle("deck-sections-with-sideboard", hasSideboard);
 
@@ -1072,13 +543,20 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         const previewContentEl = document.createElement("div");
         previewContentEl.className = "deck-card-preview-content";
         preview.append(previewContentEl);
-        previewColumn.append(preview, renderManaCurve(cards), renderLandColorProduction(cards));
+        const statsStack = document.createElement("div");
+        statsStack.className = "deck-stats-stack";
+        statsStack.append(
+          renderManaCurve(currentDeck?.stats?.mana_curve),
+          renderLandColorProduction(currentDeck?.stats?.land_color_production),
+        );
+
+        previewColumn.append(preview, statsStack);
         deckSections.append(previewColumn);
         previewContent = previewContentEl;
         renderHoverPreview(defaultPreviewCard, previewContent);
       }
 
-      const mainboardTypes = groupMainboardByType(groups.mainboard || []);
+      const mainboardTypes = backendGroups.mainboard || [];
       if (mainboardTypes.length) {
         const mainboardGrid = document.createElement("div");
         mainboardGrid.className = "mainboard-type-grid";
@@ -1088,17 +566,24 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
           mainboardGrid.append(column);
         });
 
-        mainboardTypes.forEach(([type, typeCards], index) => {
-          const sectionEl = renderDeckSection("mainboard", typeCards, typeSectionLabel(type), {
+        mainboardTypes.forEach((group, index) => {
+          const sectionEl = renderDeckSection("mainboard", group.cards || [], group.label || typeSectionLabel(group.key), {
             extraClass: "deck-section-mainboard-type",
-            typeKey: type,
+            typeKey: group.key,
           });
           if (sectionEl) mainboardColumns[index % mainboardColumns.length].append(sectionEl);
         });
         deckSections.append(mainboardGrid);
+        const cardTypeBreakdown = renderCardTypeBreakdown(currentDeck?.stats?.card_type_breakdown);
+        const targetColumn = mainboardColumns.reduce((shorterColumn, column) => (
+          column.getBoundingClientRect().height < shorterColumn.getBoundingClientRect().height ? column : shorterColumn
+        ), mainboardColumns[0]);
+        targetColumn.append(cardTypeBreakdown);
+      } else {
+        deckSections.append(renderCardTypeBreakdown(currentDeck?.stats?.card_type_breakdown));
       }
 
-      const sideboardSection = renderDeckSection("sideboard", groups.sideboard || [], sectionLabel("sideboard"));
+      const sideboardSection = renderDeckSection("sideboard", backendGroups.sideboard || [], sectionLabel("sideboard"));
       if (sideboardSection) deckSections.append(sideboardSection);
 
       deckSections.append(renderMatchupHistory());
@@ -1123,72 +608,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       }
 
       inspectedCardKey = cardKey;
-      showInspect(card);
-    }
-
-    function showInspect(card) {
-      const data = card.card_data || {};
-      inspectContent.innerHTML = "";
-
-      const title = document.createElement("h2");
-      title.textContent = data.name || card.name;
-      inspectContent.append(title);
-
-      if (data.image_uri) {
-        const image = document.createElement("img");
-        image.src = data.image_uri;
-        image.alt = data.name || card.name;
-        inspectContent.append(image);
-      }
-
-      const details = document.createElement("dl");
-      [
-        ["Quantity", card.quantity],
-        ["Type", data.type_line || "Unknown"],
-        ["Mana Value", data.cmc ?? ""],
-      ].forEach(([label, value]) => {
-        const dt = document.createElement("dt");
-        dt.textContent = label;
-        const dd = document.createElement("dd");
-        dd.textContent = String(value);
-        details.append(dt, dd);
-      });
-
-      const manaDt = document.createElement("dt");
-      manaDt.textContent = "Mana Cost";
-      const manaDd = document.createElement("dd");
-      manaDd.append(renderManaCost(data.mana_cost || ""));
-      details.append(manaDt, manaDd);
-
-      const colorDt = document.createElement("dt");
-      colorDt.textContent = "Color Identity";
-      const colorDd = document.createElement("dd");
-      colorDd.append(renderColorSquares(data.color_identity || []));
-      details.append(colorDt, colorDd);
-      inspectContent.append(details);
-
-      if (data.oracle_text) {
-        const oracleHeading = document.createElement("h3");
-        oracleHeading.textContent = "Oracle Text:";
-        inspectContent.append(oracleHeading);
-
-        const oracle = document.createElement("p");
-        oracle.className = "oracle-text";
-        oracle.textContent = data.oracle_text;
-        inspectContent.append(oracle);
-      }
-
-      if (data.scryfall_uri) {
-        const link = document.createElement("a");
-        link.className = "scryfall-link";
-        link.href = data.scryfall_uri;
-        link.target = "_blank";
-        link.rel = "noreferrer";
-        link.textContent = "View On Scryfall";
-        inspectContent.append(link);
-      }
-
-      inspectPanel.hidden = false;
+      showInspectCard({ card, inspectPanel, inspectContent, renderColorSquares });
     }
 
     async function loadDeck(versionId = new URLSearchParams(window.location.search).get("version_id")) {
@@ -1196,6 +616,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         deckTitle.textContent = "Deck Detail";
         deckMeta.textContent = "No deck id was provided.";
         deckPanel.hidden = true;
+        deckContentDivider.hidden = true;
         return;
       }
 
@@ -1218,6 +639,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         deckTitle.textContent = "Deck Detail";
         deckMeta.textContent = error instanceof Error ? error.message : "Could not load deck.";
         deckPanel.hidden = true;
+        deckContentDivider.hidden = true;
       }
     }
 
