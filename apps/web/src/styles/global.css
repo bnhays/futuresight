@@ -75,7 +75,7 @@
   --color-quantity-border: #637083;
   --color-quantity-text: #d7dee9;
   --button-text: #111827;
-  --button-hover-text: #111827;
+  --button-hover-text: #ffffff;
   --shadow-floating: 0 1.5rem 3rem rgb(0 0 0 / 42%);
   --shadow-bar: 0 0.85rem 2rem rgb(0 0 0 / 34%);
 }
@@ -327,6 +327,20 @@ button {
 
 button:hover,
 button:focus {
+  color: var(--button-hover-text);
+  background: transparent;
+}
+
+#import-button {
+  min-height: 2.25rem;
+  border-color: var(--button-green);
+  padding: 0 0.85rem;
+  color: var(--button-text);
+  background: var(--button-green);
+}
+
+#import-button:hover,
+#import-button:focus {
   color: var(--button-hover-text);
   background: transparent;
 }
