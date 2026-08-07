@@ -211,7 +211,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     function applyDeckMode(deck) {
       const previewMode = isPreviewMode(deck);
       backLink.href = previewMode && deckId ? `/decks/versions?id=${encodeURIComponent(deckId)}` : "/";
-      backLink.textContent = previewMode ? "Versions" : "Back";
+      backLink.textContent = "Back";
       versionsDeckButton.href = deckId ? `/decks/versions?id=${encodeURIComponent(deckId)}` : "/decks";
       editDeckButton.hidden = previewMode;
       deleteDeckButton.hidden = previewMode;
@@ -222,6 +222,13 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       }
       updateUnsavedQuantityBar();
     }
+
+    backLink.addEventListener("click", (event) => {
+      if (window.history.length <= 1) return;
+
+      event.preventDefault();
+      window.history.back();
+    });
 
     function currentDecklistText() {
       if (!currentDeck) return "";

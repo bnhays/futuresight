@@ -26,6 +26,13 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     const backToDeck = document.querySelector("#back-to-deck");
     const deckVersionsList = document.querySelector("#deck-versions-list");
 
+    backToDeck.addEventListener("click", (event) => {
+      if (window.history.length <= 1) return;
+
+      event.preventDefault();
+      window.history.back();
+    });
+
     function versionLabel(version) {
       return version.version_name ? `v${version.version_number} - ${version.version_name}` : `v${version.version_number}`;
     }
