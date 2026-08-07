@@ -466,7 +466,7 @@ export function renderMatchupHistory({
   actions.className = "deck-actions";
 
   const seeAllButton = document.createElement("button");
-  seeAllButton.className = "action-button muted hollow-button compact-action";
+  seeAllButton.className = "action-button primary-button hollow-button compact-action";
   seeAllButton.type = "button";
   seeAllButton.textContent = matchupHistoryShowingAll ? "Show Recent" : "See All";
   seeAllButton.hidden = matchups.length <= 5;
@@ -476,7 +476,7 @@ export function renderMatchupHistory({
   });
 
   const logButton = document.createElement("button");
-  logButton.className = "action-button primary-button hollow-button compact-action";
+  logButton.className = "action-button success-button hollow-button compact-action";
   logButton.type = "button";
   logButton.textContent = "Log New";
 
