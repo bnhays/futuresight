@@ -68,6 +68,10 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         name.className = "recent-deck-name";
         name.textContent = deck.name || "Untitled Deck";
 
+        const title = document.createElement("span");
+        title.className = "deck-list-title";
+        title.append(name, renderColorSquares(deck.color_identity || []));
+
         const updatedAt = document.createElement("span");
         updatedAt.className = "deck-list-updated";
         updatedAt.textContent = `Edited ${formatShortDateTime(deck.updated_at)}`;
@@ -75,17 +79,14 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 
         const meta = document.createElement("span");
         meta.className = "recent-deck-meta";
-        meta.append(
-          renderColorSquares(deck.color_identity || []),
-          document.createTextNode(formatDeckFormat(deck.format || "unknown")),
-        );
+        meta.textContent = formatDeckFormat(deck.format || "unknown");
 
         const description = document.createElement("span");
         description.className = "recent-deck-description";
         description.textContent = deck.description || "";
         description.hidden = !deck.description;
 
-        deckInfo.append(name, updatedAt, description, meta);
+        deckInfo.append(title, updatedAt, description, meta);
 
         const thumbnail = renderThumbnailCard(deck);
         if (thumbnail) {

@@ -50,6 +50,22 @@ export function renderMatchupHistory({
     renderDeck(getCurrentDeck().cards || []);
   }
 
+  function matchupOutcomeClass(outcome) {
+    const normalized = String(outcome || "").trim().toLowerCase();
+    const scoreMatch = normalized.match(/^(\d+)\s*[-–]\s*(\d+)$/);
+    if (scoreMatch) {
+      const wins = Number(scoreMatch[1]);
+      const losses = Number(scoreMatch[2]);
+      if (wins > losses) return "matchup-result-victory";
+      if (wins === losses) return "matchup-result-draw";
+      return "matchup-result-loss";
+    }
+    if (["victory", "win", "won"].includes(normalized)) return "matchup-result-victory";
+    if (["draw", "tie", "tied"].includes(normalized)) return "matchup-result-draw";
+    if (["loss", "lose", "lost"].includes(normalized)) return "matchup-result-loss";
+    return "";
+  }
+
   function renderMatchupCard(matchup) {
     const card = document.createElement("article");
     card.className = "matchup-card";
@@ -71,6 +87,15 @@ export function renderMatchupHistory({
     opponent.textContent = matchup.opponent_deck || "Unknown Deck";
 
     if (matchup.opponent_deck_id) {
+      const outcomeClass = matchupOutcomeClass(matchup.outcome);
+      if (outcomeClass) {
+        const resultIndicator = document.createElement("span");
+        resultIndicator.className = `matchup-result-indicator ${outcomeClass}`;
+        resultIndicator.setAttribute("aria-label", matchup.outcome);
+        resultIndicator.title = matchup.outcome;
+        card.append(resultIndicator);
+      }
+
       const deckLink = document.createElement("a");
       deckLink.className = "matchup-deck-link";
       deckLink.href = `/decks/view?id=${encodeURIComponent(matchup.opponent_deck_id)}`;

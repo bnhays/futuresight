@@ -180,20 +180,29 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       return renderDeckColorSquares(colors, { order: COLOR_ORDER, labels: COLOR_LABELS });
     }
 
+    function mainboardCardCount(cards) {
+      return (cards || []).reduce((total, card) => {
+        if (card.section === "sideboard") return total;
+        return total + Number(card.quantity || 0);
+      }, 0);
+    }
+
     function renderTitle(deck) {
       deckTitle.textContent = "";
       const colors = renderColorSquares(getIdentityColors(deck.cards || []));
       const titleText = document.createElement("span");
       titleText.textContent = deck.name || "Untitled Deck";
 
+      deckTitle.append(titleText);
       if (colors.children.length) {
         deckTitle.append(colors);
       }
-      deckTitle.append(titleText);
       deckDescription.textContent = deck.description || "";
       deckDescription.hidden = !deck.description;
+      const cardCount = mainboardCardCount(deck.cards || []);
+      const cardCountText = ` | ${cardCount} ${cardCount === 1 ? "card" : "cards"}`;
       const versionText = deck.version_number ? ` | ${versionLabel(deck)}` : "";
-      deckMeta.textContent = `Format: ${formatDeckFormat(deck.format || "modern")}${versionText}`;
+      deckMeta.textContent = `Format: ${formatDeckFormat(deck.format || "modern")}${versionText}${cardCountText}`;
     }
 
     function applyDeckMode(deck) {

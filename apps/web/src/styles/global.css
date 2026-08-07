@@ -616,6 +616,21 @@ button:disabled:focus {
   gap: 0.25rem;
 }
 
+.deck-list-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+
+.deck-list-title .recent-deck-name {
+  min-width: 0;
+}
+
+.deck-list-title .color-squares {
+  flex: 0 0 auto;
+}
+
 .deck-list-thumbnail,
 .deck-list-thumbnail img,
 .deck-list-thumbnail-empty {
@@ -697,6 +712,7 @@ button:disabled:focus {
 
 .recent-deck-name {
   font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .recent-deck-description,
@@ -922,15 +938,37 @@ button:disabled:focus {
   right: 0.55rem;
   width: 0.85rem;
   height: 0.85rem;
-  border: 1px solid var(--color-success);
+  border: 1px solid #b8d9f5;
   border-radius: 3px;
-  background: var(--color-success);
+  background: #b8d9f5;
+}
+
+.matchup-result-indicator {
+  position: absolute;
+  top: 0.78rem;
+  right: 1.7rem;
+  width: 0.48rem;
+  height: 0.48rem;
+  border: 1px solid rgb(0 0 0 / 18%);
+  border-radius: 50%;
+}
+
+.matchup-result-victory {
+  background: #9fd3aa;
+}
+
+.matchup-result-draw {
+  background: #f2f0bd;
+}
+
+.matchup-result-loss {
+  background: #f39a76;
 }
 
 .matchup-deck-link:hover,
 .matchup-deck-link:focus {
-  border-color: var(--color-success);
-  outline: 2px solid var(--color-success);
+  border-color: #b8d9f5;
+  outline: 2px solid #b8d9f5;
   outline-offset: 2px;
 }
 
