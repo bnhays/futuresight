@@ -832,10 +832,11 @@ button:disabled:focus {
 }
 
 .matchup-card {
+  position: relative;
   display: grid;
   gap: 0.45rem;
   min-width: 0;
-  padding: 0.75rem;
+  padding: 0.75rem 1.9rem 0.75rem 0.75rem;
   border: 1px solid var(--color-border-soft);
   border-radius: 6px;
   background: var(--color-subtle-bg);
@@ -855,6 +856,24 @@ button:disabled:focus {
   font-size: 1rem;
   line-height: 1.2;
   overflow-wrap: anywhere;
+}
+
+.matchup-deck-link {
+  position: absolute;
+  top: 0.55rem;
+  right: 0.55rem;
+  width: 0.85rem;
+  height: 0.85rem;
+  border: 1px solid var(--color-success);
+  border-radius: 3px;
+  background: var(--color-success);
+}
+
+.matchup-deck-link:hover,
+.matchup-deck-link:focus {
+  border-color: var(--color-success);
+  outline: 2px solid var(--color-success);
+  outline-offset: 2px;
 }
 
 .matchup-tournament,
@@ -927,6 +946,10 @@ button:disabled:focus {
 .matchup-edit-form {
   grid-template-columns: minmax(10rem, 1fr) minmax(10rem, 1fr) minmax(10rem, 1fr) minmax(6rem, 8rem) auto;
   padding-top: 0;
+}
+
+.matchup-log-form {
+  grid-template-columns: minmax(10rem, 1fr) minmax(10rem, 1fr) minmax(10rem, 1fr) minmax(6rem, 8rem) auto;
 }
 
 .matchup-edit-actions {
@@ -1308,8 +1331,8 @@ button:disabled:focus {
 
 .deck-table th:nth-child(4),
 .deck-table td:nth-child(4) {
-  width: 7.25rem;
-  max-width: 7.25rem;
+  width: 8.25rem;
+  max-width: 8.25rem;
   padding-right: 0.4rem;
 }
 
@@ -1319,8 +1342,8 @@ button:disabled:focus {
 
 .deck-sections-with-sideboard .deck-table th:nth-child(4),
 .deck-sections-with-sideboard .deck-table td:nth-child(4) {
-  width: 7.25rem;
-  max-width: 7.25rem;
+  width: 8.25rem;
+  max-width: 8.25rem;
 }
 
 .deck-table-no-mana {
@@ -1356,13 +1379,14 @@ button:disabled:focus {
   display: inline-flex;
   align-items: center;
   max-width: 100%;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 0.45rem;
 }
 
 .card-type > span:first-child {
+  flex: 0 1 auto;
   min-width: 0;
-  overflow-wrap: normal;
+  overflow-wrap: anywhere;
 }
 
 .card-type .color-squares {

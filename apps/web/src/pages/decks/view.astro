@@ -699,6 +699,21 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       const opponent = document.createElement("h3");
       opponent.textContent = matchup.opponent_deck || "Unknown Deck";
 
+      if (matchup.opponent_deck_id) {
+        const deckLink = document.createElement("a");
+        deckLink.className = "matchup-deck-link";
+        deckLink.href = `/decks/view?id=${encodeURIComponent(matchup.opponent_deck_id)}`;
+        deckLink.textContent = "";
+        deckLink.setAttribute("aria-label", `Open ${matchup.opponent_deck || "opponent deck"} in library`);
+        deckLink.addEventListener("click", (event) => {
+          event.stopPropagation();
+        });
+        deckLink.addEventListener("keydown", (event) => {
+          event.stopPropagation();
+        });
+        card.append(deckLink);
+      }
+
       const tournament = document.createElement("p");
       tournament.className = "matchup-tournament";
       tournament.textContent = matchup.tournament_name || "Unknown Tournament";
@@ -948,9 +963,12 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       if (!deckId || !currentVersionId()) return;
 
       const formData = new FormData(form);
+      const selectedDeckId = String(formData.get("opponent_deck_id") || "").trim();
+      const selectedDeck = (libraryDecks || []).find((deck) => deck.id === selectedDeckId);
+      const opponentDeck = selectedDeck?.name || String(formData.get("opponent_deck") || "").trim();
       const payload = {
-        opponent_deck: String(formData.get("opponent_deck") || "").trim(),
-        opponent_deck_id: null,
+        opponent_deck: opponentDeck,
+        opponent_deck_id: selectedDeckId || null,
         tournament_name: String(formData.get("tournament_name") || "").trim(),
         outcome: String(formData.get("outcome") || "").trim(),
       };
@@ -993,7 +1011,26 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       logButton.hidden = true;
 
       const form = document.createElement("form");
-      form.className = "matchup-form";
+      form.className = "matchup-form matchup-log-form";
+
+      const deckSelectLabel = document.createElement("label");
+      const deckSelectText = document.createElement("span");
+      deckSelectText.textContent = "Library Deck";
+      const deckSelect = document.createElement("select");
+      deckSelect.name = "opponent_deck_id";
+      const customOption = document.createElement("option");
+      customOption.value = "";
+      customOption.textContent = "Custom opponent";
+      deckSelect.append(customOption);
+      (libraryDecks || [])
+        .filter((deck) => deck.id !== deckId)
+        .forEach((deck) => {
+          const option = document.createElement("option");
+          option.value = deck.id;
+          option.textContent = deck.name || "Untitled Deck";
+          deckSelect.append(option);
+        });
+      deckSelectLabel.append(deckSelectText, deckSelect);
 
       const opponentLabel = document.createElement("label");
       const opponentText = document.createElement("span");
@@ -1004,6 +1041,19 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       opponentInput.maxLength = 80;
       opponentInput.autocomplete = "off";
       opponentLabel.append(opponentText, opponentInput);
+
+      deckSelect.addEventListener("change", () => {
+        const selectedDeck = (libraryDecks || []).find((deck) => deck.id === deckSelect.value);
+        if (selectedDeck) {
+          opponentInput.value = selectedDeck.name || "Untitled Deck";
+        }
+      });
+      opponentInput.addEventListener("input", () => {
+        const selectedDeck = (libraryDecks || []).find((deck) => deck.id === deckSelect.value);
+        if (selectedDeck && opponentInput.value !== (selectedDeck.name || "Untitled Deck")) {
+          deckSelect.value = "";
+        }
+      });
 
       const tournamentLabel = document.createElement("label");
       const tournamentText = document.createElement("span");
@@ -1051,12 +1101,36 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       });
 
       actions.append(submitButton, cancelButton, status);
-      form.append(opponentLabel, tournamentLabel, outcomeLabel, actions);
+      form.append(deckSelectLabel, opponentLabel, tournamentLabel, outcomeLabel, actions);
       form.addEventListener("submit", (event) => saveMatchup(event, form, status, submitButton));
 
       formContainer.append(form);
       section.append(formContainer);
-      opponentInput.focus();
+      deckSelect.focus();
+    }
+
+    function renderMatchupFormLoading(section, formContainer, logButton) {
+      formContainer.innerHTML = "";
+      formContainer.hidden = false;
+      logButton.hidden = true;
+
+      const panel = document.createElement("div");
+      panel.className = "matchup-edit-panel";
+
+      const status = document.createElement("p");
+      status.className = "matchup-status";
+      status.textContent = "Loading deck library...";
+      panel.append(status);
+
+      formContainer.append(panel);
+      section.append(formContainer);
+
+      loadLibraryDecks()
+        .then(() => renderMatchupForm(section, formContainer, logButton))
+        .catch((error) => {
+          status.textContent = error instanceof Error ? error.message : "Could not load deck library.";
+          logButton.hidden = false;
+        });
     }
 
     function renderMatchupHistory() {
@@ -1121,7 +1195,11 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       formContainer.hidden = true;
 
       logButton.addEventListener("click", () => {
-        renderMatchupForm(section, formContainer, logButton);
+        if (libraryDecks) {
+          renderMatchupForm(section, formContainer, logButton);
+          return;
+        }
+        renderMatchupFormLoading(section, formContainer, logButton);
       });
 
       section.append(formContainer);
