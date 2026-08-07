@@ -14,14 +14,14 @@ The AI review focused on whether the implemented prototype matched the intended 
 - Parse and resolve card data through the API.
 - Persist deck and card cache data in MongoDB.
 - Display saved decks and deck details in the Astro client.
-- Support deck editing, quick quantity updates, and deletion.
+- Support deck editing, quick quantity updates, version history, basic matchup logging, and deletion.
 - Identify incomplete or deferred features honestly in documentation.
 
 The review also identified implementation caveats that should remain visible, including placeholder backend modules and UI polish issues around unusual mana values and dense table rows.
 
 ## Accepted Suggestion
 
-The accepted AI-assisted direction was to keep the prototype focused on the working deck-management flow instead of expanding scope into every planned feature. This included documenting legality checks, statistics, matchup logging, tournament tracking, and version comparison as deferred work.
+The accepted AI-assisted direction was to keep the prototype focused on the working deck-management flow instead of expanding scope into every planned feature. This included documenting full legality checks, backend statistics, richer matchup and tournament tracking, and version comparison as deferred work, while recognizing that linear version history and basic per-version matchup logging are now part of the prototype.
 
 I also accepted AI guidance around using Astro pages with client-side JavaScript for the current interface, while keeping API responsibilities in FastAPI.
 
@@ -30,16 +30,20 @@ I also accepted AI guidance around using Astro pages with client-side JavaScript
 Broader product features I rejected or postponed for this update when they were outside the core prototype goal. Postponed areas include:
 
 - Full format legality validation.
-- Complete deck statistics.
-- Matchup and tournament workflows.
+- Complete backend deck statistics.
+- Richer matchup and tournament workflows.
 - Version comparison.
 - Additional storage or validation layers beyond what the current prototype needs.
 
 Visual refinements for unusual mana-cost rendering and dense row wrapping were also postponed after manual verification because they did not block the main workflow.
 
+## Independent Engineering Decision
+
+One important engineering decision I made myself was to keep deck versions linear instead of adding a branching version tree. This kept the Sprint 3 implementation focused on a usable version history workflow: each deck import starts at version 1, meaningful edits append a new numbered version, and restoring an older version creates a new latest version without changing historical records.
+
 ## Manual Verification After AI Review
 
-After AI-assisted implementation and review, the application was manually verified through Docker and manually observing the website and testing its functionality. Verification included importing several decklists of varying types, editing deck details, using quick update controls, deleting decks, and checking potential error states.
+After AI-assisted implementation and review, the application was manually verified through Docker and manually observing the website and testing its functionality. Verification included importing several decklists of varying types, editing deck details, reviewing version history, restoring historical versions, logging basic matchup results, using quick update controls, deleting decks, and checking potential error states.
 
 The main deck-management workflow behaved as expected. The remaining observed issues were limited to some missing mana-value rendering for card types without a clean exact mana cost and unwanted wrapping when a row contains too much information.
 
