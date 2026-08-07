@@ -114,13 +114,8 @@ export function renderCardTypeBreakdown(breakdown) {
     const summary = document.createElement("div");
     summary.className = "card-type-breakdown-summary";
 
-    const label = document.createElement("span");
-    label.textContent = section.label || "Cards";
-
-    const total = document.createElement("span");
-    total.textContent = String(section.total || 0);
-
-    summary.append(label, total);
+    const total = Number(section.total || 0);
+    summary.textContent = `${section.label || "Cards"} · ${total} ${total === 1 ? "card" : "cards"}`;
     group.append(summary);
 
     const rows = document.createElement("div");

@@ -21,6 +21,8 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       </div>
     </div>
 
+    <div id="deck-content-divider" class="deck-content-divider" hidden></div>
+
     <section id="deck-edit-panel" class="deck-edit-panel" hidden>
       <form id="deck-edit-form" class="import-form deck-edit-form">
         <div class="import-fields">
@@ -112,6 +114,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     const deckTitle = document.querySelector("#deck-title");
     const deckDescription = document.querySelector("#deck-description");
     const deckMeta = document.querySelector("#deck-meta");
+    const deckContentDivider = document.querySelector("#deck-content-divider");
     const deckPanel = document.querySelector("#deck-panel");
     const deckSections = document.querySelector("#deck-sections");
     const inspectPanel = document.querySelector("#inspect-panel");
@@ -384,6 +387,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     function renderDeck(cards) {
       deckSections.innerHTML = "";
       deckPanel.hidden = !cards.length;
+      deckContentDivider.hidden = !cards.length;
       let previewContent = null;
 
       function renderDeckSection(section, cardsInSection, headingText, options = {}) {
@@ -605,6 +609,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         deckTitle.textContent = "Deck Detail";
         deckMeta.textContent = "No deck id was provided.";
         deckPanel.hidden = true;
+        deckContentDivider.hidden = true;
         return;
       }
 
@@ -627,6 +632,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         deckTitle.textContent = "Deck Detail";
         deckMeta.textContent = error instanceof Error ? error.message : "Could not load deck.";
         deckPanel.hidden = true;
+        deckContentDivider.hidden = true;
       }
     }
 

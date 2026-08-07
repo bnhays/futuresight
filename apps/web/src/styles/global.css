@@ -1222,7 +1222,7 @@ button:disabled:focus {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: start;
-  gap: 0.8rem;
+  gap: 1.15rem;
 }
 
 .card-type-breakdown-group,
@@ -1232,35 +1232,34 @@ button:disabled:focus {
   gap: 0.35rem;
 }
 
-.card-type-breakdown-summary,
-.card-type-breakdown-row {
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 0.35rem;
-  min-width: 0;
-  color: var(--color-muted);
-  font-size: 0.82rem;
-  line-height: 1.2;
+.card-type-breakdown-group + .card-type-breakdown-group {
+  border-left: 1px solid var(--color-border-soft);
+  padding-left: 1.15rem;
 }
 
 .card-type-breakdown-summary {
   color: var(--color-heading);
+  font-size: 0.86rem;
   font-weight: 800;
+  line-height: 1.2;
 }
 
 .card-type-breakdown-row {
+  display: grid;
+  grid-template-columns: minmax(0, max-content) max-content;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.45rem;
+  min-width: 0;
+  color: var(--color-muted);
+  font-size: 0.82rem;
+  line-height: 1.2;
   font-weight: 700;
 }
 
 .card-type-breakdown-row span:first-child {
   min-width: 0;
   overflow-wrap: anywhere;
-}
-
-.card-type-breakdown-summary span:last-child {
-  color: var(--color-heading);
-  font-variant-numeric: tabular-nums;
 }
 
 .card-type-breakdown-row span:last-child {
@@ -1379,6 +1378,11 @@ button:disabled:focus {
 .deck-view-header {
   grid-template-columns: 1fr auto;
   align-items: start;
+}
+
+.deck-content-divider {
+  height: 1px;
+  background: var(--color-border-soft);
 }
 
 .deck-view-header > .deck-actions {
@@ -1969,6 +1973,11 @@ button:disabled:focus {
   .deck-preview-column {
     grid-template-rows: 21rem auto;
     transform: none;
+  }
+
+  .card-type-breakdown-group + .card-type-breakdown-group {
+    border-left: 0;
+    padding-left: 0;
   }
 
   .inspect-panel {
