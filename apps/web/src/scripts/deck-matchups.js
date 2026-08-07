@@ -86,16 +86,19 @@ export function renderMatchupHistory({
     const opponent = document.createElement("h3");
     opponent.textContent = matchup.opponent_deck || "Unknown Deck";
 
-    if (matchup.opponent_deck_id) {
-      const outcomeClass = matchupOutcomeClass(matchup.outcome);
-      if (outcomeClass) {
-        const resultIndicator = document.createElement("span");
-        resultIndicator.className = `matchup-result-indicator ${outcomeClass}`;
-        resultIndicator.setAttribute("aria-label", matchup.outcome);
-        resultIndicator.title = matchup.outcome;
-        card.append(resultIndicator);
+    const outcomeClass = matchupOutcomeClass(matchup.outcome);
+    if (outcomeClass) {
+      const resultIndicator = document.createElement("span");
+      resultIndicator.className = `matchup-result-indicator ${outcomeClass}`;
+      if (matchup.opponent_deck_id) {
+        resultIndicator.classList.add("matchup-result-with-deck-link");
       }
+      resultIndicator.setAttribute("aria-label", matchup.outcome);
+      resultIndicator.title = matchup.outcome;
+      card.append(resultIndicator);
+    }
 
+    if (matchup.opponent_deck_id) {
       const deckLink = document.createElement("a");
       deckLink.className = "matchup-deck-link";
       deckLink.href = `/decks/view?id=${encodeURIComponent(matchup.opponent_deck_id)}`;

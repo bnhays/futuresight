@@ -946,11 +946,15 @@ button:disabled:focus {
 .matchup-result-indicator {
   position: absolute;
   top: 0.78rem;
-  right: 1.7rem;
+  right: 0.75rem;
   width: 0.48rem;
   height: 0.48rem;
   border: 1px solid rgb(0 0 0 / 18%);
   border-radius: 50%;
+}
+
+.matchup-result-with-deck-link {
+  right: 1.7rem;
 }
 
 .matchup-result-victory {
@@ -1216,6 +1220,7 @@ button:disabled:focus {
 
 .card-type-breakdown-groups {
   display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 0.8rem;
 }
 
@@ -1227,10 +1232,10 @@ button:disabled:focus {
 
 .card-type-breakdown-summary,
 .card-type-breakdown-row {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
+  justify-content: flex-start;
+  gap: 0.35rem;
   min-width: 0;
   color: var(--color-muted);
   font-size: 0.82rem;
@@ -1930,6 +1935,7 @@ button:disabled:focus {
   .deck-sections,
   .mainboard-type-grid,
   .mainboard-type-column,
+  .card-type-breakdown-groups,
   .matchup-grid,
   .matchup-form,
   .deck-list-item,
