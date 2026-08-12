@@ -1,0 +1,66 @@
+Repository Reviewed Repository Assignment: Repository B Student or project name: Nora Hays / project name "Future Sight" GitHub repository URL: https://github.com/bnhays/futuresightLinks to an external site. Branch reviewed: main Latest commit hash reviewed: dd12e9baf195a56817f28fa87e19e14e3ec14a44 (date 2026-07-26, from SNAPSHOT-METADATA.md) Approximate date and time reviewed: 8/8/2026 around 1 pm
+ 
+
+Initial Understanding Future Sight is a full-stack deck-management prototype for competitive Magic: The Gathering players. It is intended to support players who want to import a decklist, resolve real card data, and then save, browse, inspect, edit, and delete decks. The primary workflow currently implemented is deck import and management. An Astro client submits a decklist to a FastAPI server, the server parses the list and enriches it with Scryfall card data, MongoDB stores the deck and cached cards, and the client renders a deck detail view with grouped card tables. Legality checks, statistics, matchups, and durable version history are present as placeholder modules but are intentionally deferred. The README and architecture doc made all of this easy to determine.
+ 
+
+Repository Organization The repository is organized clearly for its size. It uses an apps/web and apps/api monorepo split, the API follows a conventional FastAPI module layout, and the five project docs live together under docs/project/. A root Makefile and docker-compose.yml make the entry points obvious. Important files were easy to locate. Generated files and secrets are handled correctly: .gitignore covers env files, caches, and build output, and .env.example ships only non-secret defaults. The one gap that affects navigation is not file placement but the absence of a tests directory, which I cover in Section 6.
+ 
+
+README and Run Instructions The README is strong onboarding documentation. It states the prototype purpose, links all five project docs, describes the structure, lists dependency files for both services, and gives three separate ways to run the stack (Docker Compose, Makefile targets, and local commands) with the correct ports. It also has an explicit Intentionally Deferred Features section that names what is not built yet, which stops a new engineer from reading placeholder routes as bugs. One recommended improvement: the README documents how to run the app but never mentions how to test it, because there is no automated test command to give. Once a test suite exists, a short "how to run tests" section would complete the onboarding story.
+ 
+
+Architecture and Implementation Alignment docs/project/architecture.md accurately describes the components and holds up against the source. It documents the Astro client, the FastAPI routers, the Motor/MongoDB data layer, and the Scryfall integration, and it correctly identifies which routes are real and which are placeholders. The most useful alignment detail is a caveat the doc raises about itself: it states that although the collection is named deck_versions, the update flow deletes old version documents and inserts a replacement, so durable history is deferred. I confirmed this in decks.py, where the update path calls delete_many on deck_versions and then insert_one. A doc that flags its own naming-versus-behavior mismatch is more trustworthy than one that hides it, because a new engineer is warned before they assume version history exists.
+ 
+
+Testing and Verification Evidence This is the weakest area of the project. There are no automated tests anywhere in the repository. I searched the whole tree and found no test files, no pytest or unittest usage, no assertions, and pytest is not listed as a dependency in pyproject.toml. Verification rests entirely on docs/project/manual-verification.md, which is a real and reasonable manual pass: it lists actions performed, expected results, and observed results across the core deck workflows, and it honestly records two known issues (missing mana rendering for cards without a clean mana cost, and row wrapping on dense tables). The manual doc increases confidence in the happy path, but there is no repeatable automated evidence that any behavior stays correct after a change. The clearest opportunity is the deck parser: deck_parser.py contains pure functions (parse_card_line, clean_card_name, remove_parenthesized_text) that need no database or network and are ideal unit-test targets. One small pytest file covering a normal multi-card list, boundary cases like a 1x quantity prefix and a stripped set code, and a failure case like an unparseable line producing a warning would lock in the most logic per line of test.
+ 
+
+AI-Assisted Engineering Evidence docs/project/ai-implementation-review.md explains that AI was used mainly for frontend implementation and for learning Astro, which the author had not used before, and for reasoning about how the client connects to the API. It names accepted direction (keep the prototype focused on the working deck-management flow and document the rest as deferred) and postponed work (legality, stats, matchups, version history, and visual polish). It closes with an engineering responsibility statement keeping final decisions with the author. The honest framing of AI as a learning aid for an unfamiliar framework, paired with a clear scope decision, is good evidence the author stayed in control of the work rather than accepting output wholesale. One question: the doc describes the accept and defer decisions clearly, but it does not give an example of an AI suggestion that was reviewed and corrected or rejected on technical grounds. One concrete example of AI output the author changed would strengthen the evidence of hands-on review.
+ 
+
+Repository History and Project Evolution I could not traverse a live commit log because the snapshot excludes Git history. From the metadata, the repo has 19 commits overall and 18 on main, and the snapshot fell back to main after not finding a sprint-4-quality branch. The in-repo docs carry the evolution story well: the project-vision and requirements docs establish intended scope, and the architecture and manual-verification docs describe the current prototype state and what is deferred. The main observation is that, unlike a sprint-branch workflow, the milestone structure is not visible in branch names here, so the documentation is doing the work of explaining where the project stands. That is acceptable, but it means the docs are the only record of progression.
+ 
+
+Engineering Strengths The decklist parser is domain-aware and fault-tolerant. deck_parser.py handles the messy reality of exported decklists: it accepts quantity prefixes with or without a trailing x, strips parenthesized set codes and trailing collector numbers that Arena and MTGO exports include, recognizes section headers and sideboard markers, and appends a warning for any line it cannot parse instead of failing the whole import. This matters because real decklists come from many exporters, and tolerant parsing with visible warnings is the difference between an importer that works on real input and one that only works on clean input.
+ 
+
+The documentation is honest and verifiable against the code. The architecture doc's deferred-features list is literally true in the source: legality.py returns a hardcoded legal result, stats.py returns an empty stats object, and the deck_versions delete-and-replace behavior is exactly what decks.py does. This matters because a new engineer can trust the deferred list and the placeholder labels, and will not waste time assuming a stubbed feature is a working one.
+
+ 
+
+Recommendations or Engineering Questions Add an automated test suite, starting with the pure parser functions. There are currently no automated tests in the repository, no test files, no pytest or unittest usage, and no assertions. This matters because the manual verification pass, while real, cannot catch a regression introduced later, and the parser holds non-trivial logic that is easy to break silently during editing. Appropriately scoped next step: add a small pytest file for deck_parser.py covering a normal list, boundary cases (a 1x prefix, a stripped (SET) code, a trailing collector number), and a failure case (an unparseable line producing a warning), since those functions need no MongoDB or Scryfall and give the most coverage for the least setup.
+ 
+
+Let the bulk-lookup failure path fall through to the per-card fallback. In resolve_card_data in decks.py, the bulk Scryfall lookup is wrapped in try/except, which is good, but the except block sets unresolved_names to an empty list. Because the per-card fuzzy fallback loop iterates unresolved_names, a single failed bulk call skips the fallback entirely, and every cache-miss card in that import comes back unresolved with one generic warning, even though the fallback right below might have resolved them. This matters because a transient bulk hiccup degrades a whole import instead of a few cards. Appropriately scoped next step: in the except block, leave unresolved_names set to the missing names (it is already initialized that way before the try) so the existing fallback loop runs, or add a comment stating the skip is intentional.
+
+ 
+
+Highest-Priority Recommendation If Nora can only address one item before final submission, it should be adding an automated test suite, starting with the deck parser (Recommendation 1).
+ 
+
+Everything else in this project is in good shape: the workflow runs, the docs are honest, and the architecture is clean. The one thing that would move the project furthest is repeatable automated coverage, because right now a change to the parser or import logic could break a working feature with nothing to catch it. The parser is the highest-value starting point because its core functions are pure, so a new engineer can add meaningful tests immediately without standing up MongoDB or mocking Scryfall, and those tests would protect the most fragile and most important logic in the prototype.
+
+ 
+
+Final Reviewer Summary Future Sight does its core job well. The deck-management workflow runs end to end across a clean Astro, FastAPI, and MongoDB stack, the parser tolerates real-world decklist formats and reports what it cannot read, and the documentation is unusually honest, including a self-flagged caveat about version history that I confirmed in the code. The most important risk is the complete absence of automated tests, which leaves the working behavior unprotected against future changes. A smaller, specific improvement is the bulk-lookup failure path that skips the per-card fallback. Another engineer could understand, run, and continue this project from the snapshot, and the manual verification supports the happy path, but they could not yet verify it automatically, which is the gap to close first.
+ 
+
+Comparison Reflection 
+ 
+
+What both repositories did particularly well: honest documentation of deferred and incomplete work. Both projects have an explicit deferred-features section in the README and label their placeholders and known limitations plainly instead of hiding them, so a new engineer knows exactly where the working edge of each project is.
+
+ 
+
+One strength unique to Repository A (Ryder / Curbo): a real automated test suite with normal, boundary, and failure tiers that assert on specific status codes and response fields. Curbo can prove its behavior stays correct after a change, which Future Sight cannot yet do.
+
+ 
+
+One strength unique to Repository B (Nora / Future Sight): a fault-tolerant, domain-aware text parser that ingests messy real-world decklist exports and degrades with warnings instead of failing. Curbo does not have an analogous tolerant ingestion layer for unstructured user input.
+
+ 
+
+One idea I would consider adopting in my own CRE Deal Screener: Curbo's manual-verification table, an expected-versus-observed pass backed by a defects-discovered-and-resolved log. My screener already has a unittest suite and a skip-and-warn CSV loader, but I do not keep a written manual-verification record of a full run against sample listings. Adding that table would document that the ranked digest behaves correctly on real input, and would pair well with the automated tests I already have. (Alternative if I would rather adopt something else: Nora's honest Intentionally Deferred Features README section, which would fit my deferred multi-tenant scope cleanly.)
+
+ 
