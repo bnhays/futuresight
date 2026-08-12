@@ -1,0 +1,60 @@
+
+Peer-Review for Nora Hayes
+1. GitHub History: The repository is public at
+https://github.com/bnhays/futuresight. I reviewed the sprint-4-prototype branch at
+commit 78b6a6250553eba11c7ed01003add1259495d278. The repository has clear
+Sprint 2, Sprint 3, and Sprint 4 branches. The commits show development from
+basic deck importing to persistence, caching, version history, matchups, tests, and
+backend statistics.
+2. Initial understanding: Future Sight is a Magic: deck-management
+application, where users can import decklists and view data from Scryfall. Astro
+provides the frontend, FastAPI handles API calls, and MongoDB stores the decks.
+Documentation is very clear.
+3. Repository Organization: Repository is easy to navigate, api routes
+are easily trackable and tests, app and frontend are all in different files. Frontend is
+divided into reusable scripts for statistics and matchups. This organization proves
+really well, the deck editing screen is clean and helpful.
+4. README and Run instructions: The ReadMe explained the project
+purpose well, but the docker instructions didn’t work for me at first, I think because
+there was some issue with mongo dependencies, so I had to pull from a more
+recent branch 4 commit to get it working. Also might be my old computer.
+5. Architecture. The architecture document generally matches the
+implementation. It correctly describes version history, matchups, statistics, routes,
+MongoDB collections, and the newer backend modules.
+6. Testing: The project now has automated tests for deck parsing and Scryfall
+helper behavior. These tests cover sideboards, export metadata, bare card names,
+double-faced card images, missing fields, and Scryfall’s 75-card request boundary.
+The assertions are specific and meaningful. There are no automated tests for API
+routes, MongoDB behavior, deck-version creation and restoration, matchup
+operations, or statistics. There is also no visible continuous-integration workflow or
+frontend build check.
+7. AI-assisted engineering evidence: The AI implementation review
+is thorough. It explains accepted and postponed suggestions, the move from client-
+side to backend statistics, and the decision to use linear rather than branching
+version history. It also clearly states that the student retained responsibility for
+implementation and verification. When reviewing this repository, I had an agent run
+through my local files to help me parse through the repository and it mentioned how
+I didn’t have as good an AGENTS.md file. I thought that was funny.
+8. Repository history: Repository shows meaningful commits, and changes
+throughout engineering process.
+9. Engineering strengths:
+a. Backend and frontend responsibilities are in separate and focused modules,
+it makes it easy to review
+b. Deck version history is implemented thoughtfully and shows good version
+control
+c. Automated tests cover realistic inputs
+d. Documentation clearly distinguishes implemented features from
+tournament and version comparison work
+e. Once built, the app works very well and looks great as a tool for magic
+deckbuilding.
+10. Recommendations:
+a. Add MongoDB and API health checks to make docker startup more reliable.
+b. Add API tests for updating and importing new decks
+11. Highest Priority: A mongodb health check and troubleshooting doc
+for docker would be helpful for starting the app
+12. Final Reviewer Summary: Future Sight is well organized and
+has clear documentation, with useful version history and tests. Its strongest
+qualities are the improved modular organization and version-history design.
+Another engineer could understand and continue the project, but Docker startup
+reliability and automated coverage of the main API workflows should be improved
+before the final submission.
