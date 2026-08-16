@@ -481,6 +481,12 @@ button:focus {
   background: transparent;
 }
 
+#import-button:disabled:hover,
+#import-button:disabled:focus {
+  color: var(--button-text);
+  background: var(--button-green);
+}
+
 .button-link {
   display: inline-flex;
   align-items: center;
@@ -738,6 +744,182 @@ button:disabled:focus {
 .recent-decks-list {
   display: grid;
   gap: 0.6rem;
+}
+
+.deck-browser-controls {
+  display: grid;
+  gap: 0.75rem;
+  padding: 1rem;
+  border: 1px solid var(--color-border);
+  border-top: 4px solid var(--button-blue);
+  border-radius: 8px;
+  background: var(--color-panel-bg);
+}
+
+.deck-search-label {
+  display: grid;
+}
+
+.deck-search-label input {
+  width: 100%;
+  min-height: 2.5rem;
+  border: 1px solid var(--color-input-border);
+  border-radius: 6px;
+  padding: 0 0.7rem;
+  color: var(--color-heading);
+  background: var(--color-subtle-bg);
+  font: inherit;
+  font-weight: 400;
+}
+
+.deck-filter-panel {
+  border: 1px solid var(--color-border-soft);
+  border-radius: 6px;
+  background: var(--color-subtle-bg);
+}
+
+.deck-filter-panel summary {
+  min-height: 2.5rem;
+  padding: 0.65rem 0.75rem;
+  color: var(--color-heading);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.deck-filter-panel summary:focus {
+  outline: 2px solid var(--color-focus-border);
+  outline-offset: 2px;
+}
+
+.deck-filter-content {
+  display: grid;
+  gap: 0.85rem;
+  padding: 0 0.75rem 0.75rem;
+}
+
+.deck-filter-group {
+  display: grid;
+  gap: 0.65rem;
+  min-width: 0;
+  margin: 0;
+  border: 0;
+  padding: 0;
+}
+
+.deck-filter-group + .deck-filter-group {
+  border-top: 1px solid var(--color-border-soft);
+  padding-top: 0.85rem;
+}
+
+.deck-filter-group-heading {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.75rem;
+}
+
+.deck-filter-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr));
+  gap: 0.5rem;
+}
+
+.deck-filter-grid label,
+.deck-filter-mode label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-width: 0;
+  color: var(--color-text);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.deck-filter-grid label {
+  min-height: 2.25rem;
+  border: 1px solid var(--color-border-soft);
+  border-radius: 6px;
+  padding: 0 0.65rem;
+  background: var(--color-panel-bg);
+}
+
+.deck-filter-grid .deck-color-filter {
+  border-color: rgb(0 0 0 / 12%);
+  color: #111827;
+}
+
+.deck-filter-grid .deck-color-filter.color-w {
+  background: #f2f0bd;
+}
+
+.deck-filter-grid .deck-color-filter.color-u {
+  background: #b8d9f5;
+}
+
+.deck-filter-grid .deck-color-filter.color-b {
+  background: #b7ada8;
+}
+
+.deck-filter-grid .deck-color-filter.color-r {
+  background: #f39a76;
+}
+
+.deck-filter-grid .deck-color-filter.color-g {
+  background: #9fd3aa;
+}
+
+.deck-filter-grid .deck-color-filter.color-c {
+  background: #c9c3ba;
+}
+
+.deck-filter-grid label:has(input:checked) {
+  border-color: var(--color-heading);
+  box-shadow: inset 0 0 0 1px var(--color-heading);
+}
+
+.deck-filter-grid input,
+.deck-filter-mode input {
+  margin: 0;
+}
+
+.deck-filter-mode {
+  display: inline-flex;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-panel-bg);
+}
+
+.deck-filter-mode label {
+  position: relative;
+  min-height: 2rem;
+  padding: 0 0.65rem;
+  color: var(--color-muted);
+}
+
+.deck-filter-mode input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.deck-filter-mode label + label {
+  border-left: 1px solid var(--color-border);
+}
+
+.deck-filter-mode label:has(input:focus-visible) {
+  outline: 2px solid var(--color-focus-border);
+  outline-offset: -2px;
+}
+
+.deck-filter-mode label:has(input:checked) {
+  color: var(--button-text);
+  background: var(--button-blue);
+}
+
+.deck-filter-actions {
+  display: flex;
+  justify-content: flex-end;
 }
 
 .recent-deck-link {
@@ -2504,6 +2686,11 @@ button:disabled:focus {
 
   .import-fields {
     grid-template-columns: 1fr;
+  }
+
+  .deck-filter-group-heading {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .import-layout {

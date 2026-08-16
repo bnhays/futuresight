@@ -60,7 +60,7 @@ Sideboard
 2 Negate`}
         ></textarea>
         <div class="form-actions">
-          <button id="import-button" type="submit">Import</button>
+          <button id="import-button" type="submit" disabled>Import</button>
           <span id="import-status" role="status" aria-live="polite"></span>
         </div>
       </form>
@@ -103,6 +103,15 @@ Sideboard
     const recentDecksList = document.querySelector("#recent-decks-list");
     const randomCardArt = document.querySelector("#random-card-art");
     const refreshCardArtButton = document.querySelector("#refresh-card-art");
+    let isImporting = false;
+
+    function updateImportButtonState() {
+      const hasDecklist = Boolean(textarea.value.trim());
+      button.disabled = !hasDecklist || isImporting;
+      if (hasDecklist && status.textContent === "Paste a decklist first.") {
+        status.textContent = "";
+      }
+    }
 
     function renderRecentDecks(decks) {
       recentDecksList.innerHTML = "";
@@ -240,8 +249,9 @@ Sideboard
         return;
       }
 
-      button.disabled = true;
-      status.textContent = "Parsing...";
+      isImporting = true;
+      updateImportButtonState();
+      status.textContent = "Resolving cards and saving deck...";
 
       try {
         const response = await fetch(`${API_URL}/decks/import`, {
@@ -265,17 +275,20 @@ Sideboard
           status.textContent = "Saved. Opening deck view...";
           window.location.href = `/decks/view?id=${encodeURIComponent(data.id)}`;
         } else {
-          status.textContent = "No cards found.";
+          status.textContent = "No cards were found in that decklist.";
         }
       } catch (error) {
-        status.textContent = error instanceof Error ? error.message : "Could not import decklist.";
+        status.textContent = error instanceof Error ? error.message : "Could not import decklist. Your pasted text is still here.";
       } finally {
-        button.disabled = false;
+        isImporting = false;
+        updateImportButtonState();
       }
     });
 
+    textarea.addEventListener("input", updateImportButtonState);
     refreshCardArtButton.addEventListener("click", loadRandomCardArt);
 
+    updateImportButtonState();
     loadRecentDecks();
     loadRandomCardArt();
   </script>

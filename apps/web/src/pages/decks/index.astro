@@ -9,6 +9,58 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       <a class="button-link action-button muted compact compact-action" href="/">Back</a>
     </div>
 
+    <section class="deck-browser-controls" aria-label="Browse decks">
+      <label class="deck-search-label">
+        <input id="deck-search" type="search" autocomplete="off" placeholder="Search decks" aria-label="Search decks" />
+      </label>
+
+      <details class="deck-filter-panel">
+        <summary>Filters</summary>
+        <div class="deck-filter-content">
+          <div class="deck-filter-group" role="group" aria-label="Colors">
+            <div class="deck-filter-group-heading">
+              <div class="deck-filter-mode" aria-label="Color filter mode">
+                <label>
+                  <input type="radio" name="color-filter-mode" value="and" checked />
+                  <span>AND</span>
+                </label>
+                <label>
+                  <input type="radio" name="color-filter-mode" value="or" />
+                  <span>OR</span>
+                </label>
+              </div>
+            </div>
+            <div class="deck-filter-grid">
+              <label class="deck-color-filter color-w"><input type="checkbox" name="color-filter" value="W" /> White</label>
+              <label class="deck-color-filter color-u"><input type="checkbox" name="color-filter" value="U" /> Blue</label>
+              <label class="deck-color-filter color-b"><input type="checkbox" name="color-filter" value="B" /> Black</label>
+              <label class="deck-color-filter color-r"><input type="checkbox" name="color-filter" value="R" /> Red</label>
+              <label class="deck-color-filter color-g"><input type="checkbox" name="color-filter" value="G" /> Green</label>
+              <label class="deck-color-filter color-c"><input type="checkbox" name="color-filter" value="C" /> Colorless</label>
+            </div>
+          </div>
+
+          <div class="deck-filter-group" role="group" aria-label="Formats">
+            <div class="deck-filter-grid">
+              <label><input type="checkbox" name="format-filter" value="modern" /> Modern</label>
+              <label><input type="checkbox" name="format-filter" value="standard" /> Standard</label>
+              <label><input type="checkbox" name="format-filter" value="pioneer" /> Pioneer</label>
+              <label><input type="checkbox" name="format-filter" value="legacy" /> Legacy</label>
+              <label><input type="checkbox" name="format-filter" value="vintage" /> Vintage</label>
+              <label><input type="checkbox" name="format-filter" value="pauper" /> Pauper</label>
+            </div>
+          </div>
+
+          <div class="deck-filter-actions">
+            <button id="clear-deck-filters" class="action-button muted hollow-button compact-action" type="button">
+              Clear
+            </button>
+          </div>
+        </div>
+      </details>
+      <p id="deck-browser-status" class="empty-state" role="status" aria-live="polite"></p>
+    </section>
+
     <div id="all-decks-list" class="recent-decks-list" aria-live="polite">
       <p class="empty-state">Loading decks...</p>
     </div>
@@ -18,7 +70,73 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     import { API_URL, formatDeckFormat, formatShortDateTime, renderColorSquares } from "../../scripts/deck-ui.js";
 
     const allDecksList = document.querySelector("#all-decks-list");
+    const deckSearch = document.querySelector("#deck-search");
+    const deckBrowserStatus = document.querySelector("#deck-browser-status");
+    const clearDeckFilters = document.querySelector("#clear-deck-filters");
+    const colorFilterInputs = Array.from(document.querySelectorAll('input[name="color-filter"]'));
+    const formatFilterInputs = Array.from(document.querySelectorAll('input[name="format-filter"]'));
+    const colorFilterModeInputs = Array.from(document.querySelectorAll('input[name="color-filter-mode"]'));
     const colorOrder = ["W", "U", "B", "R", "G"];
+    let allDecks = [];
+
+    function selectedValues(inputs) {
+      return inputs.filter((input) => input.checked).map((input) => input.value);
+    }
+
+    function deckColors(deck) {
+      const colors = deck.color_identity || [];
+      return colors.length ? colors : ["C"];
+    }
+
+    function deckMatchesSearch(deck, query) {
+      if (!query) return true;
+      const searchable = [deck.name, deck.description, deck.format].filter(Boolean).join(" ").toLowerCase();
+      return searchable.includes(query);
+    }
+
+    function deckMatchesColors(deck, selectedColors, colorMode) {
+      if (!selectedColors.length) return true;
+      const colors = deckColors(deck);
+      if (colorMode === "or") {
+        return selectedColors.some((color) => colors.includes(color));
+      }
+      return selectedColors.every((color) => colors.includes(color));
+    }
+
+    function deckMatchesFormats(deck, selectedFormats) {
+      if (!selectedFormats.length) return true;
+      return selectedFormats.includes(deck.format || "unknown");
+    }
+
+    function filteredDecks() {
+      const query = deckSearch.value.trim().toLowerCase();
+      const selectedColors = selectedValues(colorFilterInputs);
+      const selectedFormats = selectedValues(formatFilterInputs);
+      const colorMode = colorFilterModeInputs.find((input) => input.checked)?.value || "and";
+
+      return allDecks.filter(
+        (deck) =>
+          deckMatchesSearch(deck, query) &&
+          deckMatchesColors(deck, selectedColors, colorMode) &&
+          deckMatchesFormats(deck, selectedFormats),
+      );
+    }
+
+    function renderBrowserStatus(visibleCount) {
+      if (!allDecks.length) {
+        deckBrowserStatus.textContent = "";
+        return;
+      }
+
+      const deckLabel = visibleCount === 1 ? "deck" : "decks";
+      deckBrowserStatus.textContent = `${visibleCount} ${deckLabel} shown`;
+    }
+
+    function renderFilteredDecks() {
+      const decks = filteredDecks();
+      renderDecks(decks, allDecks.length > 0);
+      renderBrowserStatus(decks.length);
+    }
 
     function renderDeckColorRail(colors) {
       const rail = document.createElement("span");
@@ -59,13 +177,13 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       return thumbnail;
     }
 
-    function renderDecks(decks) {
+    function renderDecks(decks, hasLoadedDecks = decks.length > 0) {
       allDecksList.innerHTML = "";
 
       if (!decks.length) {
         const empty = document.createElement("p");
         empty.className = "empty-state";
-        empty.textContent = "No saved decks yet.";
+        empty.textContent = hasLoadedDecks ? "No decks match these filters." : "No saved decks yet.";
         allDecksList.append(empty);
         return;
       }
@@ -151,14 +269,10 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
           throw new Error(data.detail || "Could not delete deck.");
         }
 
-        item.remove();
-        if (!allDecksList.children.length) {
-          const empty = document.createElement("p");
-          empty.className = "empty-state";
-          empty.textContent = "No saved decks yet.";
-          allDecksList.append(empty);
-        }
-      } catch {
+        allDecks = allDecks.filter((candidate) => candidate.id !== deck.id);
+        renderFilteredDecks();
+      } catch (error) {
+        deckBrowserStatus.textContent = error instanceof Error ? error.message : "Could not delete deck.";
         deleteButton.disabled = false;
       }
     }
@@ -170,15 +284,37 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         if (!response.ok) {
           throw new Error(data.detail || "Could not load decks.");
         }
-        renderDecks(Array.isArray(data) ? data : []);
+        allDecks = Array.isArray(data) ? data : [];
+        renderFilteredDecks();
       } catch {
+        allDecks = [];
         allDecksList.innerHTML = "";
         const error = document.createElement("p");
         error.className = "empty-state";
         error.textContent = "Decks are unavailable.";
         allDecksList.append(error);
+        deckBrowserStatus.textContent = "";
       }
     }
+
+    deckSearch.addEventListener("input", renderFilteredDecks);
+    colorFilterInputs.forEach((input) => input.addEventListener("change", renderFilteredDecks));
+    formatFilterInputs.forEach((input) => input.addEventListener("change", renderFilteredDecks));
+    colorFilterModeInputs.forEach((input) => input.addEventListener("change", renderFilteredDecks));
+    clearDeckFilters.addEventListener("click", () => {
+      deckSearch.value = "";
+      colorFilterInputs.forEach((input) => {
+        input.checked = false;
+      });
+      formatFilterInputs.forEach((input) => {
+        input.checked = false;
+      });
+      colorFilterModeInputs.forEach((input) => {
+        input.checked = input.value === "and";
+      });
+      renderFilteredDecks();
+      deckSearch.focus();
+    });
 
     loadDecks();
   </script>
