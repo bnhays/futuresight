@@ -64,10 +64,43 @@ const { title } = Astro.props;
     <main>
       <slot />
     </main>
+    <button
+      id="theme-randomize"
+      class="theme-control theme-randomize"
+      type="button"
+      aria-label="Randomize session color theme"
+      title="Randomize session color theme"
+    >
+      <span class="theme-control-icon" aria-hidden="true">⟳</span>
+    </button>
     <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch to dark mode" aria-pressed="false">
       <span class="theme-toggle-icon" aria-hidden="true"></span>
       <span class="theme-toggle-text">Dark</span>
     </button>
+    <script is:inline>
+      (() => {
+        const storageKey = "future-sight-header-mana";
+        const headerManaColors = ["white", "blue", "black", "red", "green"];
+        const randomize = document.querySelector("#theme-randomize");
+
+        function getNextHeaderMana() {
+          const currentMana = document.documentElement.dataset.headerMana;
+          const options = headerManaColors.filter((color) => color !== currentMana);
+          const colors = options.length ? options : headerManaColors;
+          return colors[Math.floor(Math.random() * colors.length)];
+        }
+
+        randomize?.addEventListener("click", () => {
+          const nextHeaderMana = getNextHeaderMana();
+          document.documentElement.dataset.headerMana = nextHeaderMana;
+          try {
+            window.sessionStorage.setItem(storageKey, nextHeaderMana);
+          } catch {
+            // Session theme still applies for the current page if storage is unavailable.
+          }
+        });
+      })();
+    </script>
     <script is:inline>
       (() => {
         const storageKey = "future-sight-theme";
