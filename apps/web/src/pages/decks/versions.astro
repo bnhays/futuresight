@@ -279,6 +279,10 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       summaryButton.type = "button";
       summaryButton.textContent = "Summary";
       summaryButton.setAttribute("aria-expanded", "false");
+      let summaryPointerActivation = false;
+      summaryButton.addEventListener("pointerdown", () => {
+        summaryPointerActivation = true;
+      });
       summaryButton.addEventListener("click", (event) => {
         event.preventDefault();
         event.stopPropagation();
@@ -286,6 +290,10 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         summary.hidden = expanded;
         summaryButton.setAttribute("aria-expanded", String(!expanded));
         summaryButton.textContent = expanded ? "Summary" : "Hide";
+        if (summaryPointerActivation) {
+          summaryButton.blur();
+          summaryPointerActivation = false;
+        }
       });
 
       const forkButton = document.createElement("button");
