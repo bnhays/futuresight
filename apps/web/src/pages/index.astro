@@ -82,7 +82,7 @@ Sideboard
             <button id="refresh-card-art" class="action-button version-button hollow-button compact-action" type="button">Refresh</button>
           </div>
           <div id="random-card-art" class="random-card-art" aria-live="polite">
-            <p class="empty-state">Loading card art...</p>
+            <div class="card-art-skeleton" aria-label="Loading card art" role="status"></div>
           </div>
         </aside>
       </div>
@@ -197,8 +197,18 @@ Sideboard
       randomCardArt.append(empty);
     }
 
+    function renderRandomCardSkeleton() {
+      randomCardArt.innerHTML = "";
+      const skeleton = document.createElement("div");
+      skeleton.className = "card-art-skeleton";
+      skeleton.setAttribute("aria-label", "Loading card art");
+      skeleton.setAttribute("role", "status");
+      randomCardArt.append(skeleton);
+    }
+
     async function loadRandomCardArt() {
       refreshCardArtButton.disabled = true;
+      renderRandomCardSkeleton();
 
       try {
         const response = await fetch(`${API_URL}/decks/random-card-art`);

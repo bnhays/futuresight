@@ -19,6 +19,10 @@ class DeckVersionRestoreRequest(BaseModel):
     change_note: str | None = None
 
 
+class DeckVersionForkRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=120)
+
+
 class DeckVersionMetadataRequest(BaseModel):
     version_name: str | None = None
     change_note: str | None = None

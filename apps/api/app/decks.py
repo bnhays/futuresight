@@ -11,6 +11,7 @@ from app.deck_schemas import (
     DeckImportRequest,
     DeckImportResponse,
     DeckUpdateResponse,
+    DeckVersionForkRequest,
     DeckVersionMetadataRequest,
     DeckVersionRestoreRequest,
 )
@@ -66,6 +67,10 @@ def normalize_change_note(value: str | None) -> str | None:
 def normalize_description(value: str | None) -> str | None:
     description = (value or "").strip()
     return description[:150] or None
+
+
+def normalize_deck_name(value: str | None) -> str:
+    return (value or "").strip()[:120]
 
 
 async def parse_and_resolve_decklist(
@@ -305,6 +310,89 @@ async def restore_deck_version(
         cards=[ParsedDeckCard(**card) for card in version_document["cards"]],
         warnings=version_document["warnings"],
         import_metrics=DeckImportMetrics(**version_document["import_metrics"]),
+    )
+
+
+@router.post("/{deck_id}/versions/{version_id}/fork", response_model=DeckImportResponse)
+async def fork_deck_version(
+    deck_id: str,
+    version_id: str,
+    payload: DeckVersionForkRequest,
+) -> DeckImportResponse:
+    db = get_database()
+    deck_object_id = parse_object_id(deck_id)
+    deck = await db.decks.find_one({"_id": deck_object_id})
+    if not deck:
+        raise HTTPException(status_code=404, detail="Deck not found.")
+
+    source_version = await get_selected_version(db, deck, version_id=version_id)
+    now = utc_now()
+    deck_name = normalize_deck_name(payload.name)
+    if not deck_name:
+        raise HTTPException(status_code=400, detail="Deck name cannot be blank.")
+
+    deck_format = source_version.get("format") or deck.get("format") or "modern"
+    deck_description = source_version.get("description")
+    thumbnail_card_name = source_version.get("thumbnail_card_name")
+    source_version_number = source_version.get("version_number") or 1
+    source_deck_name = source_version.get("name") or deck.get("name") or "Untitled Deck"
+    fork_change_note = f"Forked from {source_deck_name} v{source_version_number}."
+    source_cards = source_version.get("cards") or []
+    warnings = source_version.get("warnings") or []
+    import_metrics = source_version.get("import_metrics") or {}
+
+    deck_result = await db.decks.insert_one(
+        {
+            "name": deck_name,
+            "format": deck_format,
+            "description": deck_description,
+            "thumbnail_card_name": thumbnail_card_name,
+            "active_version_id": None,
+            "created_at": now,
+            "updated_at": now,
+        }
+    )
+    version_result = await db.deck_versions.insert_one(
+        {
+            "deck_id": deck_result.inserted_id,
+            "version_number": 1,
+            "version_name": source_version.get("version_name"),
+            "change_note": fork_change_note,
+            "name": deck_name,
+            "format": deck_format,
+            "description": deck_description,
+            "thumbnail_card_name": thumbnail_card_name,
+            "cards": source_cards,
+            "matchups": [],
+            "warnings": warnings,
+            "import_metrics": import_metrics,
+            "raw_decklist": source_version.get("raw_decklist"),
+            "created_at": now,
+        }
+    )
+    await db.decks.update_one(
+        {"_id": deck_result.inserted_id},
+        {
+            "$set": {
+                "active_version_id": version_result.inserted_id,
+                "active_version_number": 1,
+            }
+        },
+    )
+
+    return DeckImportResponse(
+        id=str(deck_result.inserted_id),
+        active_version_id=str(version_result.inserted_id),
+        version_number=1,
+        version_name=source_version.get("version_name"),
+        change_note=fork_change_note,
+        name=deck_name,
+        format=deck_format,
+        description=deck_description,
+        thumbnail_card_name=thumbnail_card_name,
+        cards=[ParsedDeckCard(**card) for card in source_cards],
+        warnings=warnings,
+        import_metrics=DeckImportMetrics(**import_metrics),
     )
 
 

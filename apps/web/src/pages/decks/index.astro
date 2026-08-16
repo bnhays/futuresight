@@ -18,6 +18,23 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     import { API_URL, formatDeckFormat, formatShortDateTime, renderColorSquares } from "../../scripts/deck-ui.js";
 
     const allDecksList = document.querySelector("#all-decks-list");
+    const colorOrder = ["W", "U", "B", "R", "G"];
+
+    function renderDeckColorRail(colors) {
+      const rail = document.createElement("span");
+      rail.className = "deck-list-color-rail";
+      rail.setAttribute("aria-hidden", "true");
+
+      const visibleColors = colorOrder.filter((color) => colors?.includes(color));
+      const railColors = visibleColors.length ? visibleColors : ["C"];
+      railColors.forEach((color) => {
+        const segment = document.createElement("span");
+        segment.className = `deck-list-color-segment color-${color.toLowerCase()}`;
+        rail.append(segment);
+      });
+
+      return rail;
+    }
 
     function renderThumbnailCard(deck) {
       const card = deck.thumbnail_card;
@@ -55,7 +72,8 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 
       decks.forEach((deck) => {
         const item = document.createElement("article");
-        item.className = "recent-deck-link deck-list-item";
+        item.className = "recent-deck-link deck-list-item deck-list-item-with-rail";
+        item.append(renderDeckColorRail(deck.color_identity || []));
 
         const link = document.createElement("a");
         link.className = "deck-list-content deck-list-link";

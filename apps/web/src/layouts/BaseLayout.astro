@@ -15,9 +15,25 @@ const { title } = Astro.props;
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="color-scheme" content="light dark" />
+    <link rel="icon" type="image/jpeg" href="/logo.jpg" />
+    <link rel="apple-touch-icon" href="/logo.jpg" />
     <title>{title}</title>
     <script is:inline>
       (() => {
+        const headerStorageKey = "future-sight-header-mana";
+        const headerManaColors = ["white", "blue", "black", "red", "green"];
+        let headerMana = null;
+        try {
+          headerMana = window.sessionStorage.getItem(headerStorageKey);
+          if (!headerManaColors.includes(headerMana)) {
+            headerMana = headerManaColors[Math.floor(Math.random() * headerManaColors.length)];
+            window.sessionStorage.setItem(headerStorageKey, headerMana);
+          }
+        } catch {
+          headerMana = headerManaColors[Math.floor(Math.random() * headerManaColors.length)];
+        }
+        document.documentElement.dataset.headerMana = headerMana;
+
         const storageKey = "future-sight-theme";
         const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
         let storedTheme = null;
@@ -43,8 +59,6 @@ const { title } = Astro.props;
       <nav class="site-nav" aria-label="Primary navigation">
         <a href="/">Import Deck</a>
         <a href="/decks">Decks</a>
-        <a aria-disabled="true">Tournaments</a>
-        <a aria-disabled="true">Account</a>
       </nav>
     </header>
     <main>
