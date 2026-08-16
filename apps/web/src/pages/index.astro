@@ -24,6 +24,7 @@ Sideboard
               <button id="clear-decklist" class="action-button muted hollow-button compact-action" type="button" hidden>
                 Clear
               </button>
+              <span id="decklist-counts" class="decklist-counts" aria-live="polite">Mainboard 0 | Sideboard 0 | Unique 0</span>
             </div>
           </div>
 
@@ -123,6 +124,7 @@ Sideboard
     const textarea = document.querySelector("#decklist");
     const button = document.querySelector("#import-button");
     const clearDecklistButton = document.querySelector("#clear-decklist");
+    const decklistCounts = document.querySelector("#decklist-counts");
     const status = document.querySelector("#import-status");
     const recentDecksList = document.querySelector("#recent-decks-list");
     const randomCardArt = document.querySelector("#random-card-art");
@@ -136,6 +138,45 @@ Sideboard
       if (hasDecklist && status.textContent === "Paste a decklist first.") {
         status.textContent = "";
       }
+    }
+
+    function parseDecklistCounts(text) {
+      const uniqueNames = new Set();
+      let section = "mainboard";
+      let mainboard = 0;
+      let sideboard = 0;
+
+      text.split(/\r?\n/).forEach((line) => {
+        const trimmed = line.trim();
+        if (!trimmed) return;
+
+        const normalized = trimmed.toLowerCase();
+        if (["sideboard", "side board", "sb"].includes(normalized)) {
+          section = "sideboard";
+          return;
+        }
+
+        const match = trimmed.match(/^(\d+)\s*x?\s+(.+)$/i);
+        if (!match) return;
+
+        const quantity = Number(match[1]);
+        const name = match[2].replace(/\s+\*.*$/, "").trim();
+        if (!Number.isFinite(quantity) || quantity <= 0 || !name) return;
+
+        uniqueNames.add(name.toLowerCase());
+        if (section === "sideboard") {
+          sideboard += quantity;
+        } else {
+          mainboard += quantity;
+        }
+      });
+
+      return { mainboard, sideboard, unique: uniqueNames.size };
+    }
+
+    function updateDecklistCounts() {
+      const counts = parseDecklistCounts(textarea.value);
+      decklistCounts.textContent = `Mainboard ${counts.mainboard} | Sideboard ${counts.sideboard} | Unique ${counts.unique}`;
     }
 
     function renderRecentDecks(decks) {
@@ -310,16 +351,21 @@ Sideboard
       }
     });
 
-    textarea.addEventListener("input", updateImportButtonState);
+    textarea.addEventListener("input", () => {
+      updateImportButtonState();
+      updateDecklistCounts();
+    });
     clearDecklistButton.addEventListener("click", () => {
       textarea.value = "";
       status.textContent = "";
       updateImportButtonState();
+      updateDecklistCounts();
       textarea.focus();
     });
     refreshCardArtButton.addEventListener("click", loadRandomCardArt);
 
     updateImportButtonState();
+    updateDecklistCounts();
     loadRecentDecks();
     loadRandomCardArt();
   </script>

@@ -10,7 +10,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         <p id="deck-description" class="deck-detail-description" hidden></p>
         <p id="deck-meta">Loading deck...</p>
       </div>
-      <div class="deck-actions">
+      <div class="deck-actions deck-view-actions">
         <a id="back-link" class="button-link action-button muted compact compact-action" href="/">Back</a>
         <button id="edit-deck" class="action-button success-button hollow-button compact-action" type="button">Edit</button>
         <a id="versions-deck" class="action-button version-button hollow-button compact-action" href="/decks">Versions</a>
@@ -18,7 +18,10 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         <button id="restore-version" class="action-button primary-button hollow-button compact-action" type="button" hidden>
           Restore as Latest
         </button>
-        <button id="delete-deck" class="action-button danger-button hollow-button compact-action" type="button">Delete</button>
+        <span class="deck-danger-actions">
+          <button id="delete-deck" class="action-button danger-button hollow-button compact-action" type="button">Delete</button>
+          <button id="export-deck" class="action-button version-button hollow-button compact-action" type="button">Export</button>
+        </span>
       </div>
     </div>
 
@@ -134,6 +137,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     const forkDeckButton = document.querySelector("#fork-deck");
     const restoreVersionButton = document.querySelector("#restore-version");
     const deleteDeckButton = document.querySelector("#delete-deck");
+    const exportDeckButton = document.querySelector("#export-deck");
     const deckEditPanel = document.querySelector("#deck-edit-panel");
     const deckEditForm = document.querySelector("#deck-edit-form");
     const editDeckName = document.querySelector("#edit-deck-name");
@@ -226,6 +230,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       versionsDeckButton.href = deckId ? `/decks/versions?id=${encodeURIComponent(deckId)}` : "/decks";
       editDeckButton.hidden = previewMode;
       deleteDeckButton.hidden = previewMode;
+      exportDeckButton.hidden = !deck;
       versionsDeckButton.hidden = previewMode;
       forkDeckButton.hidden = !deck?.selected_version_id;
       restoreVersionButton.hidden = !previewMode || deck.selected_version_id === deck.active_version_id;
@@ -245,6 +250,24 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     function currentDecklistText() {
       if (!currentDeck) return "";
       return currentDeck.raw_decklist || deckToText(currentDeck.cards || []);
+    }
+
+    async function exportDecklist() {
+      const decklist = currentDecklistText().trim();
+      if (!decklist) {
+        deckMeta.textContent = "No decklist is available to export.";
+        return;
+      }
+
+      exportDeckButton.disabled = true;
+      try {
+        await navigator.clipboard.writeText(decklist);
+        deckMeta.textContent = "Decklist copied.";
+      } catch {
+        deckMeta.textContent = "Could not copy decklist.";
+      } finally {
+        exportDeckButton.disabled = false;
+      }
     }
 
     function hasEditChanges(decklist) {
@@ -828,6 +851,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         deckMeta.textContent = "No deck id was provided.";
         deckPanel.hidden = true;
         deckContentDivider.hidden = true;
+        exportDeckButton.hidden = true;
         return;
       }
 
@@ -851,6 +875,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         deckMeta.textContent = error instanceof Error ? error.message : "Could not load deck.";
         deckPanel.hidden = true;
         deckContentDivider.hidden = true;
+        exportDeckButton.hidden = true;
       }
     }
 
@@ -1060,6 +1085,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     deckEditForm.addEventListener("submit", saveDeck);
     cancelEditButton.addEventListener("click", closeEditPanel);
     deleteDeckButton.addEventListener("click", deleteDeck);
+    exportDeckButton.addEventListener("click", exportDecklist);
     saveQuantityChangesButton.addEventListener("click", saveQuantityChanges);
     discardQuantityChangesButton.addEventListener("click", discardQuantityChanges);
 

@@ -10,9 +10,19 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     </div>
 
     <section class="deck-browser-controls" aria-label="Browse decks">
-      <label class="deck-search-label">
-        <input id="deck-search" type="search" autocomplete="off" placeholder="Search decks" aria-label="Search decks" />
-      </label>
+      <div class="deck-browser-row">
+        <label class="deck-search-label">
+          <input id="deck-search" type="search" autocomplete="off" placeholder="Search decks" aria-label="Search decks" />
+        </label>
+        <label class="deck-sort-label">
+          <select id="deck-sort" aria-label="Sort decks">
+            <option value="updated-desc">Recently edited</option>
+            <option value="name-asc">Name A-Z</option>
+            <option value="format-asc">Format A-Z</option>
+            <option value="colors-asc">Colors</option>
+          </select>
+        </label>
+      </div>
 
       <details class="deck-filter-panel">
         <summary>Filters</summary>
@@ -71,6 +81,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 
     const allDecksList = document.querySelector("#all-decks-list");
     const deckSearch = document.querySelector("#deck-search");
+    const deckSort = document.querySelector("#deck-sort");
     const deckBrowserStatus = document.querySelector("#deck-browser-status");
     const clearDeckFilters = document.querySelector("#clear-deck-filters");
     const colorFilterInputs = Array.from(document.querySelectorAll('input[name="color-filter"]'));
@@ -122,6 +133,35 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       );
     }
 
+    function colorSortValue(deck) {
+      return deckColors(deck).join("");
+    }
+
+    function sortedDecks(decks) {
+      const sorted = [...decks];
+      const sortMode = deckSort.value;
+
+      sorted.sort((a, b) => {
+        if (sortMode === "name-asc") {
+          return (a.name || "Untitled Deck").localeCompare(b.name || "Untitled Deck");
+        }
+
+        if (sortMode === "format-asc") {
+          const formatCompare = (a.format || "unknown").localeCompare(b.format || "unknown");
+          return formatCompare || (a.name || "").localeCompare(b.name || "");
+        }
+
+        if (sortMode === "colors-asc") {
+          const colorCompare = colorSortValue(a).localeCompare(colorSortValue(b));
+          return colorCompare || (a.name || "").localeCompare(b.name || "");
+        }
+
+        return new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime();
+      });
+
+      return sorted;
+    }
+
     function renderBrowserStatus(visibleCount) {
       if (!allDecks.length) {
         deckBrowserStatus.textContent = "";
@@ -133,7 +173,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     }
 
     function renderFilteredDecks() {
-      const decks = filteredDecks();
+      const decks = sortedDecks(filteredDecks());
       renderDecks(decks, allDecks.length > 0);
       renderBrowserStatus(decks.length);
     }
@@ -298,6 +338,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     }
 
     deckSearch.addEventListener("input", renderFilteredDecks);
+    deckSort.addEventListener("change", renderFilteredDecks);
     colorFilterInputs.forEach((input) => input.addEventListener("change", renderFilteredDecks));
     formatFilterInputs.forEach((input) => input.addEventListener("change", renderFilteredDecks));
     colorFilterModeInputs.forEach((input) => input.addEventListener("change", renderFilteredDecks));
