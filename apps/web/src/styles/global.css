@@ -1292,6 +1292,11 @@ button:disabled:focus {
   background: transparent;
 }
 
+.deck-edit-form {
+  width: min(100%, 756px);
+  margin: 0 auto;
+}
+
 .deck-view-mode-toggle {
   display: inline-flex;
   width: fit-content;
@@ -2773,6 +2778,10 @@ button:disabled:focus {
   .deck-view-actions {
     align-items: flex-start;
     justify-content: flex-start;
+  }
+
+  .deck-edit-form {
+    width: 100%;
   }
 
   .deck-view-mode-toggle {

@@ -252,6 +252,10 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       return currentDeck.raw_decklist || deckToText(currentDeck.cards || []);
     }
 
+    function positiveQuantityCards(cards) {
+      return (cards || []).filter((card) => Number(card.quantity || 0) > 0);
+    }
+
     async function exportDecklist() {
       const decklist = currentDecklistText().trim();
       if (!decklist) {
@@ -288,7 +292,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 
     function hasUnsavedQuantityChanges() {
       if (!currentDeck || !initialDeck) return false;
-      return deckToText(currentDeck.cards || []) !== deckToText(initialDeck.cards || []);
+      return deckToText(positiveQuantityCards(currentDeck.cards)) !== deckToText(positiveQuantityCards(initialDeck.cards));
     }
 
     function updateUnsavedQuantityBar() {
@@ -302,7 +306,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       editDeckDescription.value = currentDeck.description || "";
       editThumbnailCardName.value = currentDeck.thumbnail_card_name || "";
       editDecklist.value = hasUnsavedQuantityChanges()
-        ? deckToText(currentDeck.cards || [])
+        ? deckToText(positiveQuantityCards(currentDeck.cards))
         : currentDecklistText();
       editStatus.textContent = "";
       deckEditPanel.hidden = false;
@@ -447,6 +451,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     }
 
     function renderDeck(cards) {
+      cards = positiveQuantityCards(cards);
       deckSections.innerHTML = "";
       deckPanel.hidden = !cards.length;
       deckContentDivider.hidden = !cards.length;
@@ -830,7 +835,11 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
 
     function changeCardQuantity(card, delta) {
       if (isPreviewMode()) return;
-      card.quantity = Math.max(0, Number(card.quantity || 0) + delta);
+      const nextQuantity = Math.max(0, Number(card.quantity || 0) + delta);
+      card.quantity = nextQuantity;
+      if (nextQuantity === 0) {
+        closeInspectPanel();
+      }
       renderDeck(currentDeck.cards || []);
       updateUnsavedQuantityBar();
     }
@@ -903,7 +912,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
             thumbnail_card_name: currentDeck.thumbnail_card_name || "",
             change_note: changeNote.trim(),
             base_version_id: currentDeck.selected_version_id || currentDeck.active_version_id || "",
-            decklist: deckToText(currentDeck.cards || []),
+            decklist: deckToText(positiveQuantityCards(currentDeck.cards)),
           }),
         });
 
