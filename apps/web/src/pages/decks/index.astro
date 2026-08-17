@@ -90,6 +90,18 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     const colorOrder = ["W", "U", "B", "R", "G"];
     let allDecks = [];
 
+    function applyDefaultDeckSort() {
+      const supportedSorts = ["updated-desc", "name-asc", "format-asc", "colors-asc"];
+      try {
+        const defaultSort = window.localStorage.getItem("future-sight-default-deck-sort");
+        if (supportedSorts.includes(defaultSort)) {
+          deckSort.value = defaultSort;
+        }
+      } catch {
+        // Keep the browser default when preference storage is unavailable.
+      }
+    }
+
     function selectedValues(inputs) {
       return inputs.filter((input) => input.checked).map((input) => input.value);
     }
@@ -357,6 +369,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       deckSearch.focus();
     });
 
+    applyDefaultDeckSort();
     loadDecks();
   </script>
 </BaseLayout>

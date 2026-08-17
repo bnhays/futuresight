@@ -131,6 +131,18 @@ Sideboard
     const refreshCardArtButton = document.querySelector("#refresh-card-art");
     let isImporting = false;
 
+    function applyDefaultImportFormat() {
+      const supportedFormats = ["modern", "standard", "pioneer", "legacy", "vintage", "pauper"];
+      try {
+        const defaultFormat = window.localStorage.getItem("future-sight-default-import-format");
+        if (supportedFormats.includes(defaultFormat)) {
+          deckFormat.value = defaultFormat;
+        }
+      } catch {
+        // Keep the form default when preference storage is unavailable.
+      }
+    }
+
     function updateImportButtonState() {
       const hasDecklist = Boolean(textarea.value.trim());
       button.disabled = !hasDecklist || isImporting;
@@ -364,6 +376,7 @@ Sideboard
     });
     refreshCardArtButton.addEventListener("click", loadRandomCardArt);
 
+    applyDefaultImportFormat();
     updateImportButtonState();
     updateDecklistCounts();
     loadRecentDecks();

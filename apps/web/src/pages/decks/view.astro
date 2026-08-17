@@ -154,7 +154,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     let currentDeck = null;
     let initialDeck = null;
     let inspectedCardKey = null;
-    let deckViewMode = "list";
+    let deckViewMode = getDefaultDeckViewMode();
     let matchupHistoryShowingAll = false;
     let activeMatchupId = null;
     let libraryDecks = null;
@@ -170,6 +170,19 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
     function sectionLabel(section) {
       if (section === "sideboard") return "Sideboard";
       return "Mainboard";
+    }
+
+    function getDefaultDeckViewMode() {
+      const supportedModes = ["list", "stacks", "gallery"];
+      try {
+        const defaultMode = window.localStorage.getItem("future-sight-default-deck-view");
+        if (supportedModes.includes(defaultMode)) {
+          return defaultMode;
+        }
+      } catch {
+        // Keep list mode when preference storage is unavailable.
+      }
+      return "list";
     }
 
     function typeSectionLabel(type) {

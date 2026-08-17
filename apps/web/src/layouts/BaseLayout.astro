@@ -10,7 +10,7 @@ const { title } = Astro.props;
 ---
 
 <!doctype html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="light" data-site-theme="default" data-mana-palette="classic">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -21,18 +21,71 @@ const { title } = Astro.props;
     <script is:inline>
       (() => {
         const headerStorageKey = "future-sight-header-mana";
+        const headerPreferenceKey = "future-sight-session-color";
         const headerManaColors = ["white", "blue", "black", "red", "green"];
-        let headerMana = null;
+        const siteThemeKey = "future-sight-site-theme";
+        const siteThemes = ["default", "arcane", "parchment", "arena", "phyrexian", "kamigawa-neon", "high-contrast"];
+        const expressiveThemes = ["arcane", "parchment", "arena", "phyrexian", "kamigawa-neon"];
+        const manaPaletteKey = "future-sight-mana-palette";
+        const manaPalettes = ["classic", "vivid", "soft"];
+
+        let siteTheme = "default";
         try {
-          headerMana = window.sessionStorage.getItem(headerStorageKey);
-          if (!headerManaColors.includes(headerMana)) {
-            headerMana = headerManaColors[Math.floor(Math.random() * headerManaColors.length)];
-            window.sessionStorage.setItem(headerStorageKey, headerMana);
+          const storedSiteTheme = window.localStorage.getItem(siteThemeKey);
+          if (siteThemes.includes(storedSiteTheme)) {
+            siteTheme = storedSiteTheme;
           }
         } catch {
-          headerMana = headerManaColors[Math.floor(Math.random() * headerManaColors.length)];
+          siteTheme = "default";
+        }
+        document.documentElement.dataset.siteTheme = siteTheme;
+
+        let manaPalette = "classic";
+        try {
+          const storedManaPalette = window.localStorage.getItem(manaPaletteKey);
+          if (manaPalettes.includes(storedManaPalette)) {
+            manaPalette = storedManaPalette;
+          }
+        } catch {
+          manaPalette = "classic";
+        }
+        document.documentElement.dataset.manaPalette = manaPalette;
+
+        let headerPreference = "random";
+        try {
+          const storedHeaderPreference = window.localStorage.getItem(headerPreferenceKey);
+          if (storedHeaderPreference === "random" || headerManaColors.includes(storedHeaderPreference)) {
+            headerPreference = storedHeaderPreference;
+          }
+        } catch {
+          headerPreference = "random";
+        }
+
+        let headerMana = null;
+        if (headerManaColors.includes(headerPreference)) {
+          headerMana = headerPreference;
+          try {
+            window.sessionStorage.setItem(headerStorageKey, headerMana);
+          } catch {
+            // Current page still receives the selected session color.
+          }
+        } else {
+          try {
+            headerMana = window.sessionStorage.getItem(headerStorageKey);
+            if (!headerManaColors.includes(headerMana)) {
+              headerMana = headerManaColors[Math.floor(Math.random() * headerManaColors.length)];
+              window.sessionStorage.setItem(headerStorageKey, headerMana);
+            }
+          } catch {
+            headerMana = headerManaColors[Math.floor(Math.random() * headerManaColors.length)];
+          }
         }
         document.documentElement.dataset.headerMana = headerMana;
+        document.documentElement.dataset.sessionColorMode = expressiveThemes.includes(siteTheme)
+          ? "theme"
+          : headerPreference === "random"
+            ? "random"
+            : "fixed";
 
         const storageKey = "future-sight-theme";
         const systemPrefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
@@ -59,6 +112,7 @@ const { title } = Astro.props;
       <nav class="site-nav" aria-label="Primary navigation">
         <a href="/">Import Deck</a>
         <a href="/decks">Decks</a>
+        <a href="/settings">Settings</a>
       </nav>
     </header>
     <main>
@@ -88,7 +142,30 @@ const { title } = Astro.props;
       (() => {
         const storageKey = "future-sight-header-mana";
         const headerManaColors = ["white", "blue", "black", "red", "green"];
+        const headerPreferenceKey = "future-sight-session-color";
+        const siteThemeKey = "future-sight-site-theme";
+        const expressiveThemes = ["arcane", "parchment", "arena", "phyrexian", "kamigawa-neon"];
         const randomize = document.querySelector("#theme-randomize");
+
+        function updateRandomizeVisibility() {
+          let headerPreference = "random";
+          let siteTheme = "default";
+          try {
+            const storedHeaderPreference = window.localStorage.getItem(headerPreferenceKey);
+            if (storedHeaderPreference === "random" || headerManaColors.includes(storedHeaderPreference)) {
+              headerPreference = storedHeaderPreference;
+            }
+            siteTheme = window.localStorage.getItem(siteThemeKey) || "default";
+          } catch {
+            headerPreference = "random";
+            siteTheme = "default";
+          }
+          document.documentElement.dataset.sessionColorMode = expressiveThemes.includes(siteTheme)
+            ? "theme"
+            : headerPreference === "random"
+              ? "random"
+              : "fixed";
+        }
 
         function getNextHeaderMana() {
           const currentMana = document.documentElement.dataset.headerMana;
@@ -102,10 +179,14 @@ const { title } = Astro.props;
           document.documentElement.dataset.headerMana = nextHeaderMana;
           try {
             window.sessionStorage.setItem(storageKey, nextHeaderMana);
+            window.localStorage.setItem(headerPreferenceKey, "random");
           } catch {
             // Session theme still applies for the current page if storage is unavailable.
           }
+          updateRandomizeVisibility();
         });
+
+        updateRandomizeVisibility();
       })();
     </script>
     <script is:inline>

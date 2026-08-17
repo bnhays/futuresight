@@ -31,16 +31,90 @@
   --color-quantity-border: #9ca3af;
   --color-quantity-text: #4b5563;
   --button-text: #111827;
-  --button-white: #f2f0bd;
-  --button-blue: #b8d9f5;
-  --button-black: #b7ada8;
-  --button-red: #f39a76;
-  --button-green: #9fd3aa;
+  --mana-white: #f2f0bd;
+  --mana-white-bg: #fff9db;
+  --mana-white-dark-bg: #2a2717;
+  --mana-white-dark-border: #817b45;
+  --mana-blue: #b8d9f5;
+  --mana-blue-bg: #edf6ff;
+  --mana-blue-dark-bg: #102237;
+  --mana-blue-dark-border: #3f6f9d;
+  --mana-black: #b7ada8;
+  --mana-black-bg: #ebe7e4;
+  --mana-black-dark-bg: #1d1a1d;
+  --mana-black-dark-border: #6d625d;
+  --mana-red: #f39a76;
+  --mana-red-bg: #fff1eb;
+  --mana-red-dark-bg: #2b1813;
+  --mana-red-dark-border: #a75d43;
+  --mana-green: #9fd3aa;
+  --mana-green-bg: #eef8f0;
+  --mana-green-dark-bg: #112819;
+  --mana-green-dark-border: #4d8f5c;
+  --mana-colorless: #c9c3ba;
+  --button-white: var(--mana-white);
+  --button-blue: var(--mana-blue);
+  --button-black: var(--mana-black);
+  --button-red: var(--mana-red);
+  --button-green: var(--mana-green);
   --button-hover-text: #111827;
+  --theme-accent: var(--color-primary);
+  --theme-accent-bg: var(--color-header-bg);
+  --theme-accent-border: var(--color-header-border);
+  --theme-accent-contrast: var(--color-primary-contrast);
+  --theme-panel-accent: var(--color-primary);
   --shadow-floating: 0 1.5rem 3rem rgb(15 23 42 / 18%);
   --shadow-bar: 0 0.85rem 2rem rgb(17 24 39 / 14%);
   color: var(--color-text);
   background: var(--color-page-bg);
+}
+
+[data-mana-palette="vivid"] {
+  --mana-white: #fff2a3;
+  --mana-white-bg: #fff7c2;
+  --mana-white-dark-bg: #302a0f;
+  --mana-white-dark-border: #c4a93a;
+  --mana-blue: #8ed0ff;
+  --mana-blue-bg: #e1f3ff;
+  --mana-blue-dark-bg: #0b263f;
+  --mana-blue-dark-border: #4fa3df;
+  --mana-black: #9b8f97;
+  --mana-black-bg: #e4dee3;
+  --mana-black-dark-bg: #1f1a22;
+  --mana-black-dark-border: #81737d;
+  --mana-red: #ff8b5f;
+  --mana-red-bg: #ffe7dc;
+  --mana-red-dark-bg: #35170e;
+  --mana-red-dark-border: #c96540;
+  --mana-green: #72d98a;
+  --mana-green-bg: #e2f8e7;
+  --mana-green-dark-bg: #0c2d16;
+  --mana-green-dark-border: #52ac65;
+  --mana-colorless: #b8c2cc;
+}
+
+[data-mana-palette="soft"] {
+  --mana-white: #ffe25f;
+  --mana-white-bg: #fff4ad;
+  --mana-white-dark-bg: #332800;
+  --mana-white-dark-border: #d7ad21;
+  --mana-blue: #2387b8;
+  --mana-blue-bg: #d7f1ff;
+  --mana-blue-dark-bg: #082f45;
+  --mana-blue-dark-border: #2aa4d8;
+  --mana-black: #9a7ea0;
+  --mana-black-bg: #eaddec;
+  --mana-black-dark-bg: #281f2d;
+  --mana-black-dark-border: #8b6d93;
+  --mana-red: #c9472f;
+  --mana-red-bg: #f8d5cc;
+  --mana-red-dark-bg: #3a120c;
+  --mana-red-dark-border: #d14f36;
+  --mana-green: #2f9a4a;
+  --mana-green-bg: #d9f1dd;
+  --mana-green-dark-bg: #0d2f16;
+  --mana-green-dark-border: #36a852;
+  --mana-colorless: #c4c0b8;
 }
 
 [data-theme="dark"] {
@@ -87,103 +161,499 @@
 }
 
 [data-header-mana="white"] {
-  --mana-curve-bg: #fff9db;
-  --mana-curve-border: #f2f0bd;
+  --mana-curve-bg: var(--mana-white-bg);
+  --mana-curve-border: var(--mana-white);
 }
 
 [data-header-mana="white"] .site-header {
-  background: #fff9db;
-  border-color: #f2f0bd;
+  background: var(--mana-white-bg);
+  border-color: var(--mana-white);
 }
 
 [data-header-mana="blue"] {
-  --mana-curve-bg: #edf6ff;
-  --mana-curve-border: #b8d9f5;
+  --mana-curve-bg: var(--mana-blue-bg);
+  --mana-curve-border: var(--mana-blue);
 }
 
 [data-header-mana="blue"] .site-header {
-  background: #edf6ff;
-  border-color: #b8d9f5;
+  background: var(--mana-blue-bg);
+  border-color: var(--mana-blue);
 }
 
 [data-header-mana="black"] {
-  --mana-curve-bg: #ebe7e4;
-  --mana-curve-border: #b7ada8;
+  --mana-curve-bg: var(--mana-black-bg);
+  --mana-curve-border: var(--mana-black);
 }
 
 [data-header-mana="black"] .site-header {
-  background: #ebe7e4;
-  border-color: #b7ada8;
+  background: var(--mana-black-bg);
+  border-color: var(--mana-black);
 }
 
 [data-header-mana="red"] {
-  --mana-curve-bg: #fff1eb;
-  --mana-curve-border: #f39a76;
+  --mana-curve-bg: var(--mana-red-bg);
+  --mana-curve-border: var(--mana-red);
 }
 
 [data-header-mana="red"] .site-header {
-  background: #fff1eb;
-  border-color: #f39a76;
+  background: var(--mana-red-bg);
+  border-color: var(--mana-red);
 }
 
 [data-header-mana="green"] {
-  --mana-curve-bg: #eef8f0;
-  --mana-curve-border: #9fd3aa;
+  --mana-curve-bg: var(--mana-green-bg);
+  --mana-curve-border: var(--mana-green);
 }
 
 [data-header-mana="green"] .site-header {
-  background: #eef8f0;
-  border-color: #9fd3aa;
+  background: var(--mana-green-bg);
+  border-color: var(--mana-green);
 }
 
 [data-theme="dark"][data-header-mana="white"] {
-  --mana-curve-bg: #2a2717;
-  --mana-curve-border: #817b45;
+  --mana-curve-bg: var(--mana-white-dark-bg);
+  --mana-curve-border: var(--mana-white-dark-border);
 }
 
 [data-theme="dark"][data-header-mana="white"] .site-header {
-  background: #2a2717;
-  border-color: #817b45;
+  background: var(--mana-white-dark-bg);
+  border-color: var(--mana-white-dark-border);
 }
 
 [data-theme="dark"][data-header-mana="blue"] {
-  --mana-curve-bg: #102237;
-  --mana-curve-border: #3f6f9d;
+  --mana-curve-bg: var(--mana-blue-dark-bg);
+  --mana-curve-border: var(--mana-blue-dark-border);
 }
 
 [data-theme="dark"][data-header-mana="blue"] .site-header {
-  background: #102237;
-  border-color: #3f6f9d;
+  background: var(--mana-blue-dark-bg);
+  border-color: var(--mana-blue-dark-border);
 }
 
 [data-theme="dark"][data-header-mana="black"] {
-  --mana-curve-bg: #1d1a1d;
-  --mana-curve-border: #6d625d;
+  --mana-curve-bg: var(--mana-black-dark-bg);
+  --mana-curve-border: var(--mana-black-dark-border);
 }
 
 [data-theme="dark"][data-header-mana="black"] .site-header {
-  background: #1d1a1d;
-  border-color: #6d625d;
+  background: var(--mana-black-dark-bg);
+  border-color: var(--mana-black-dark-border);
 }
 
 [data-theme="dark"][data-header-mana="red"] {
-  --mana-curve-bg: #2b1813;
-  --mana-curve-border: #a75d43;
+  --mana-curve-bg: var(--mana-red-dark-bg);
+  --mana-curve-border: var(--mana-red-dark-border);
 }
 
 [data-theme="dark"][data-header-mana="red"] .site-header {
-  background: #2b1813;
-  border-color: #a75d43;
+  background: var(--mana-red-dark-bg);
+  border-color: var(--mana-red-dark-border);
 }
 
 [data-theme="dark"][data-header-mana="green"] {
-  --mana-curve-bg: #112819;
-  --mana-curve-border: #4d8f5c;
+  --mana-curve-bg: var(--mana-green-dark-bg);
+  --mana-curve-border: var(--mana-green-dark-border);
 }
 
 [data-theme="dark"][data-header-mana="green"] .site-header {
-  background: #112819;
-  border-color: #4d8f5c;
+  background: var(--mana-green-dark-bg);
+  border-color: var(--mana-green-dark-border);
+}
+
+[data-site-theme="arcane"] {
+  --color-page-bg: #f5f1fb;
+  --color-header-bg: #efe7f9;
+  --color-header-border: #cdb7ea;
+  --color-panel-bg: #fffbff;
+  --color-subtle-bg: #f8f2ff;
+  --color-hover-bg: #ede3fa;
+  --color-text: #2d2635;
+  --color-heading: #181022;
+  --color-muted: #665870;
+  --color-soft: #7c7085;
+  --color-link-muted: #725f83;
+  --color-link-muted-hover: #422357;
+  --color-border: #d9cde5;
+  --color-border-soft: #e7ddeb;
+  --color-input-border: #bba8cf;
+  --color-focus-border: #9d6bd8;
+  --color-primary: #6d3fb2;
+  --color-primary-contrast: #ffffff;
+  --color-icon-bg: #efe7f9;
+  --color-icon-bg-hover: #e5d6f5;
+  --theme-accent: #7c3aed;
+  --theme-accent-bg: #efe7f9;
+  --theme-accent-border: #b88bea;
+  --theme-accent-contrast: #ffffff;
+  --theme-panel-accent: #9d6bd8;
+  --mana-curve-bg: #efe7f9;
+  --mana-curve-border: #b88bea;
+  --button-white: #eadcff;
+  --button-blue: #c7a6ff;
+  --button-black: #d7c8e8;
+  --button-red: #e5a5d9;
+  --button-green: #d2b4ff;
+}
+
+[data-site-theme="parchment"] {
+  --color-page-bg: #f7f0df;
+  --color-header-bg: #efe2c5;
+  --color-header-border: #d5bd8f;
+  --color-panel-bg: #fff9ec;
+  --color-subtle-bg: #fbf1dc;
+  --color-hover-bg: #f0e0bd;
+  --color-text: #302719;
+  --color-heading: #1c150c;
+  --color-muted: #695b44;
+  --color-soft: #7c6d55;
+  --color-link-muted: #735b30;
+  --color-link-muted-hover: #3d2b10;
+  --color-border: #d7c49d;
+  --color-border-soft: #e7d8b8;
+  --color-input-border: #b99f6d;
+  --color-focus-border: #96713a;
+  --color-primary: #8a5a20;
+  --color-primary-contrast: #fff8e8;
+  --color-icon-bg: #f1e3c3;
+  --color-icon-bg-hover: #e4cf9f;
+  --theme-accent: #9a6424;
+  --theme-accent-bg: #efe2c5;
+  --theme-accent-border: #c79955;
+  --theme-accent-contrast: #fff8e8;
+  --theme-panel-accent: #b17d35;
+  --mana-curve-bg: #efe2c5;
+  --mana-curve-border: #c79955;
+  --button-white: #f1ddb5;
+  --button-blue: #d9c095;
+  --button-black: #c8ad7c;
+  --button-red: #d69960;
+  --button-green: #b8bd82;
+}
+
+[data-site-theme="arena"] {
+  --color-page-bg: #f4f7fb;
+  --color-header-bg: #e8eef7;
+  --color-header-border: #b6c5d8;
+  --color-panel-bg: #ffffff;
+  --color-subtle-bg: #f8fafc;
+  --color-hover-bg: #e9f2ff;
+  --color-text: #172033;
+  --color-heading: #0b1220;
+  --color-muted: #526176;
+  --color-soft: #6b778a;
+  --color-link-muted: #526987;
+  --color-link-muted-hover: #17395e;
+  --color-border: #ccd6e3;
+  --color-border-soft: #dfe6ef;
+  --color-input-border: #9fb0c6;
+  --color-focus-border: #3b82f6;
+  --color-primary: #155fd6;
+  --color-primary-contrast: #ffffff;
+  --color-icon-bg: #edf2f8;
+  --color-icon-bg-hover: #dce8f5;
+  --theme-accent: #155fd6;
+  --theme-accent-bg: #e8eef7;
+  --theme-accent-border: #7da9e7;
+  --theme-accent-contrast: #ffffff;
+  --theme-panel-accent: #3b82f6;
+  --mana-curve-bg: #e8eef7;
+  --mana-curve-border: #7da9e7;
+  --button-white: #d8e7fb;
+  --button-blue: #9cc5fa;
+  --button-black: #c4ccd8;
+  --button-red: #efb0a3;
+  --button-green: #9bd6c0;
+}
+
+[data-site-theme="phyrexian"] {
+  --color-page-bg: #f2f5ef;
+  --color-header-bg: #e4ebe0;
+  --color-header-border: #a8b89d;
+  --color-panel-bg: #fbfdf9;
+  --color-subtle-bg: #eef4ea;
+  --color-hover-bg: #dfead9;
+  --color-text: #172016;
+  --color-heading: #0a1209;
+  --color-muted: #4c5c48;
+  --color-soft: #64705f;
+  --color-link-muted: #4f6f45;
+  --color-link-muted-hover: #253d20;
+  --color-border: #bfccb8;
+  --color-border-soft: #d8e1d2;
+  --color-input-border: #92a788;
+  --color-focus-border: #3d8b42;
+  --color-primary: #2f7d32;
+  --color-primary-contrast: #ffffff;
+  --color-icon-bg: #e6ede2;
+  --color-icon-bg-hover: #d5e1ce;
+  --theme-accent: #2f7d32;
+  --theme-accent-bg: #e4ebe0;
+  --theme-accent-border: #82aa72;
+  --theme-accent-contrast: #ffffff;
+  --theme-panel-accent: #4f8d45;
+  --mana-curve-bg: #e4ebe0;
+  --mana-curve-border: #82aa72;
+  --button-white: #dce8d4;
+  --button-blue: #a9d0a5;
+  --button-black: #c3cbbd;
+  --button-red: #d49d90;
+  --button-green: #8fbd81;
+}
+
+[data-site-theme="kamigawa-neon"] {
+  --color-page-bg: #f4f8fb;
+  --color-header-bg: #e6f3f8;
+  --color-header-border: #9fd9e7;
+  --color-panel-bg: #ffffff;
+  --color-subtle-bg: #f7fbfd;
+  --color-hover-bg: #e3f5fb;
+  --color-text: #14232d;
+  --color-heading: #09131a;
+  --color-muted: #4c6572;
+  --color-soft: #637884;
+  --color-link-muted: #266f82;
+  --color-link-muted-hover: #124454;
+  --color-border: #c3dce4;
+  --color-border-soft: #d9ebf0;
+  --color-input-border: #90bfca;
+  --color-focus-border: #d946ef;
+  --color-primary: #0f8fa8;
+  --color-primary-contrast: #ffffff;
+  --color-icon-bg: #e8f5f8;
+  --color-icon-bg-hover: #d4edf3;
+  --theme-accent: #0f8fa8;
+  --theme-accent-bg: #e6f3f8;
+  --theme-accent-border: #62cfe2;
+  --theme-accent-contrast: #ffffff;
+  --theme-panel-accent: #d946ef;
+  --mana-curve-bg: #e6f3f8;
+  --mana-curve-border: #62cfe2;
+  --button-white: #ddf5fa;
+  --button-blue: #8ee6f5;
+  --button-black: #c5dbe2;
+  --button-red: #f0a7ef;
+  --button-green: #96d9c9;
+}
+
+[data-site-theme="high-contrast"] {
+  --color-page-bg: #ffffff;
+  --color-header-bg: #ffffff;
+  --color-header-border: #000000;
+  --color-panel-bg: #ffffff;
+  --color-subtle-bg: #f2f2f2;
+  --color-hover-bg: #e6f0ff;
+  --color-text: #000000;
+  --color-heading: #000000;
+  --color-muted: #202020;
+  --color-soft: #333333;
+  --color-link-muted: #003f8f;
+  --color-link-muted-hover: #001f47;
+  --color-border: #000000;
+  --color-border-soft: #555555;
+  --color-input-border: #000000;
+  --color-focus-border: #ffb000;
+  --color-primary: #005fcc;
+  --color-primary-contrast: #ffffff;
+  --color-icon-bg: #ffffff;
+  --color-icon-bg-hover: #dcecff;
+}
+
+[data-theme="dark"][data-site-theme="arcane"] {
+  --color-page-bg: #15111b;
+  --color-header-bg: #21172d;
+  --color-header-border: #4f3a68;
+  --color-panel-bg: #1f1828;
+  --color-subtle-bg: #191321;
+  --color-hover-bg: #30223f;
+  --color-text: #eadff5;
+  --color-heading: #fff9ff;
+  --color-muted: #cdbfda;
+  --color-soft: #ddd1e8;
+  --color-link-muted: #c5a7eb;
+  --color-link-muted-hover: #f1defe;
+  --color-border: #49385c;
+  --color-border-soft: #342642;
+  --color-input-border: #69507f;
+  --color-focus-border: #c59cff;
+  --color-primary: #b08cff;
+  --color-primary-contrast: #1a1027;
+  --color-icon-bg: #2a2035;
+  --color-icon-bg-hover: #392849;
+  --theme-accent: #b08cff;
+  --theme-accent-bg: #21172d;
+  --theme-accent-border: #9a6fd0;
+  --theme-accent-contrast: #1a1027;
+  --theme-panel-accent: #b08cff;
+  --mana-curve-bg: #2b1e3a;
+  --mana-curve-border: #9a6fd0;
+  --button-white: #d7bdff;
+  --button-blue: #b08cff;
+  --button-black: #c8b4dc;
+  --button-red: #f0a3df;
+  --button-green: #c997ff;
+}
+
+[data-theme="dark"][data-site-theme="parchment"] {
+  --color-page-bg: #18140d;
+  --color-header-bg: #241c10;
+  --color-header-border: #5f4a25;
+  --color-panel-bg: #221b10;
+  --color-subtle-bg: #1d160d;
+  --color-hover-bg: #322611;
+  --color-text: #eee2c7;
+  --color-heading: #fff6df;
+  --color-muted: #d0c09c;
+  --color-soft: #e0cfaa;
+  --color-link-muted: #dfc37d;
+  --color-link-muted-hover: #fff0bd;
+  --color-border: #574724;
+  --color-border-soft: #3c301b;
+  --color-input-border: #735d2d;
+  --color-focus-border: #e5b85c;
+  --color-primary: #dfaa43;
+  --color-primary-contrast: #201408;
+  --color-icon-bg: #2b2112;
+  --color-icon-bg-hover: #3a2c17;
+  --theme-accent: #dfaa43;
+  --theme-accent-bg: #241c10;
+  --theme-accent-border: #b8893d;
+  --theme-accent-contrast: #201408;
+  --theme-panel-accent: #dfaa43;
+  --mana-curve-bg: #302414;
+  --mana-curve-border: #b8893d;
+  --button-white: #e8c889;
+  --button-blue: #dfaa43;
+  --button-black: #d2b375;
+  --button-red: #e19354;
+  --button-green: #c3c76a;
+}
+
+[data-theme="dark"][data-site-theme="arena"] {
+  --color-page-bg: #090d14;
+  --color-header-bg: #101823;
+  --color-header-border: #2e425c;
+  --color-panel-bg: #121a25;
+  --color-subtle-bg: #0d131b;
+  --color-hover-bg: #1d2a3a;
+  --color-text: #e5edf8;
+  --color-heading: #f8fbff;
+  --color-muted: #bfd0e5;
+  --color-soft: #cfdded;
+  --color-link-muted: #9fc8ff;
+  --color-link-muted-hover: #d8ebff;
+  --color-border: #314156;
+  --color-border-soft: #223044;
+  --color-input-border: #516985;
+  --color-focus-border: #79b7ff;
+  --color-primary: #60a5fa;
+  --color-primary-contrast: #06101f;
+  --color-icon-bg: #182331;
+  --color-icon-bg-hover: #243349;
+  --theme-accent: #60a5fa;
+  --theme-accent-bg: #101823;
+  --theme-accent-border: #6aa7ee;
+  --theme-accent-contrast: #06101f;
+  --theme-panel-accent: #60a5fa;
+  --mana-curve-bg: #152235;
+  --mana-curve-border: #6aa7ee;
+  --button-white: #c4ddff;
+  --button-blue: #60a5fa;
+  --button-black: #b9c7d9;
+  --button-red: #f09080;
+  --button-green: #79d9b7;
+}
+
+[data-theme="dark"][data-site-theme="phyrexian"] {
+  --color-page-bg: #0c100d;
+  --color-header-bg: #111a13;
+  --color-header-border: #2f4d36;
+  --color-panel-bg: #121811;
+  --color-subtle-bg: #0f140e;
+  --color-hover-bg: #1c2a1d;
+  --color-text: #e0eedc;
+  --color-heading: #f4fff0;
+  --color-muted: #b8cfb3;
+  --color-soft: #c9dcc4;
+  --color-link-muted: #93d28d;
+  --color-link-muted-hover: #cdf7c4;
+  --color-border: #31442e;
+  --color-border-soft: #223020;
+  --color-input-border: #536a4f;
+  --color-focus-border: #74d06b;
+  --color-primary: #64c05b;
+  --color-primary-contrast: #071107;
+  --color-icon-bg: #192318;
+  --color-icon-bg-hover: #253421;
+  --theme-accent: #64c05b;
+  --theme-accent-bg: #111a13;
+  --theme-accent-border: #6fb76a;
+  --theme-accent-contrast: #071107;
+  --theme-panel-accent: #64c05b;
+  --mana-curve-bg: #182316;
+  --mana-curve-border: #6fb76a;
+  --button-white: #c2e4b9;
+  --button-blue: #86d77d;
+  --button-black: #b4c8ac;
+  --button-red: #e08274;
+  --button-green: #8af07f;
+}
+
+[data-theme="dark"][data-site-theme="kamigawa-neon"] {
+  --color-page-bg: #090e13;
+  --color-header-bg: #101923;
+  --color-header-border: #245c72;
+  --color-panel-bg: #101820;
+  --color-subtle-bg: #0d1319;
+  --color-hover-bg: #172a33;
+  --color-text: #e4f7fb;
+  --color-heading: #f6feff;
+  --color-muted: #b6d7df;
+  --color-soft: #c7e4ea;
+  --color-link-muted: #7ee6ff;
+  --color-link-muted-hover: #f0a8ff;
+  --color-border: #264956;
+  --color-border-soft: #1a333d;
+  --color-input-border: #376b7a;
+  --color-focus-border: #f08cff;
+  --color-primary: #22d3ee;
+  --color-primary-contrast: #061016;
+  --color-icon-bg: #14232c;
+  --color-icon-bg-hover: #1d3440;
+  --theme-accent: #22d3ee;
+  --theme-accent-bg: #101923;
+  --theme-accent-border: #3fe4ff;
+  --theme-accent-contrast: #061016;
+  --theme-panel-accent: #f08cff;
+  --mana-curve-bg: #112833;
+  --mana-curve-border: #3fe4ff;
+  --button-white: #baf4ff;
+  --button-blue: #22d3ee;
+  --button-black: #b6cbd2;
+  --button-red: #f08cff;
+  --button-green: #62f0d0;
+}
+
+[data-theme="dark"][data-site-theme="high-contrast"] {
+  --color-page-bg: #000000;
+  --color-header-bg: #000000;
+  --color-header-border: #ffffff;
+  --color-panel-bg: #000000;
+  --color-subtle-bg: #101010;
+  --color-hover-bg: #1f1f1f;
+  --color-text: #ffffff;
+  --color-heading: #ffffff;
+  --color-muted: #ffffff;
+  --color-soft: #ffffff;
+  --color-link-muted: #8cc8ff;
+  --color-link-muted-hover: #ffffff;
+  --color-border: #ffffff;
+  --color-border-soft: #bdbdbd;
+  --color-input-border: #ffffff;
+  --color-focus-border: #ffcc00;
+  --color-primary: #8cc8ff;
+  --color-primary-contrast: #000000;
+  --color-icon-bg: #000000;
+  --color-icon-bg-hover: #202020;
 }
 
 * {
@@ -209,6 +679,16 @@ body {
   padding: 0.75rem 1rem;
   border-bottom: 1px solid var(--color-header-border);
   background: var(--color-header-bg);
+}
+
+[data-session-color-mode="theme"] .site-header {
+  border-color: var(--theme-accent-border);
+  background: var(--theme-accent-bg);
+}
+
+[data-theme="dark"][data-session-color-mode="theme"] .site-header {
+  border-color: var(--theme-accent-border);
+  background: var(--theme-accent-bg);
 }
 
 .brand {
@@ -273,6 +753,14 @@ body {
   right: 4.75rem;
 }
 
+[data-session-color-mode="fixed"] .theme-randomize {
+  display: none;
+}
+
+[data-session-color-mode="theme"] .theme-randomize {
+  display: none;
+}
+
 .theme-toggle {
   right: 1.25rem;
 }
@@ -323,7 +811,8 @@ main {
 
 .import-shell,
 .decks-shell,
-.deck-view-shell {
+.deck-view-shell,
+.settings-shell {
   display: grid;
   gap: 1.25rem;
   max-width: 1080px;
@@ -362,7 +851,8 @@ main {
 .inspect-panel,
 .message-panel,
 .recent-decks-panel,
-.random-card-panel {
+.random-card-panel,
+.settings-panel {
   display: grid;
   gap: 0.85rem;
   padding: 1rem;
@@ -372,21 +862,74 @@ main {
 }
 
 .import-form {
-  --panel-accent: #9fd3aa;
+  --panel-accent: var(--mana-green);
 }
 
 .recent-decks-panel {
-  --panel-accent: #b8d9f5;
+  --panel-accent: var(--mana-blue);
 }
 
 .random-card-panel {
-  --panel-accent: #f2f0bd;
+  --panel-accent: var(--mana-white);
 }
 
 .import-form,
 .recent-decks-panel,
-.random-card-panel {
+.random-card-panel,
+.settings-panel {
   border-top: 4px solid var(--panel-accent);
+}
+
+.settings-form {
+  display: grid;
+  gap: 1rem;
+}
+
+.settings-panel {
+  --panel-accent: var(--color-primary);
+}
+
+[data-session-color-mode="theme"] .import-form,
+[data-session-color-mode="theme"] .recent-decks-panel,
+[data-session-color-mode="theme"] .random-card-panel,
+[data-session-color-mode="theme"] .settings-panel,
+[data-session-color-mode="theme"] .matchup-history-panel,
+[data-session-color-mode="theme"] .mana-curve-panel,
+[data-session-color-mode="theme"] .land-colors-panel[data-land-accent] {
+  --panel-accent: var(--theme-panel-accent);
+}
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.85rem;
+}
+
+.settings-panel label {
+  align-content: start;
+  display: grid;
+  gap: 0.4rem;
+  font-weight: 700;
+}
+
+.settings-panel select:disabled {
+  cursor: default;
+  opacity: 0.65;
+}
+
+.mana-palette-preview {
+  align-self: end;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  min-height: 2.5rem;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-subtle-bg);
+}
+
+.mana-palette-preview span {
+  min-height: 2.5rem;
 }
 
 .import-layout {
@@ -443,8 +986,10 @@ main {
 }
 
 .import-form input,
-.import-form select {
+.import-form select,
+.settings-form select {
   width: 100%;
+  height: 2.5rem;
   min-height: 2.5rem;
   border: 1px solid var(--color-input-border);
   border-radius: 6px;
@@ -757,7 +1302,8 @@ button:disabled:focus {
 }
 
 .recent-decks-panel h2,
-.random-card-panel h2 {
+.random-card-panel h2,
+.settings-panel h2 {
   margin: 0;
   font-size: 1.1rem;
 }
@@ -832,6 +1378,10 @@ button:disabled:focus {
   border-top: 4px solid var(--button-blue);
   border-radius: 8px;
   background: var(--color-panel-bg);
+}
+
+[data-session-color-mode="theme"] .deck-browser-controls {
+  border-top-color: var(--theme-panel-accent);
 }
 
 .deck-browser-row {
@@ -942,27 +1492,27 @@ button:disabled:focus {
 }
 
 .deck-filter-grid .deck-color-filter.color-w {
-  background: #f2f0bd;
+  background: var(--mana-white);
 }
 
 .deck-filter-grid .deck-color-filter.color-u {
-  background: #b8d9f5;
+  background: var(--mana-blue);
 }
 
 .deck-filter-grid .deck-color-filter.color-b {
-  background: #b7ada8;
+  background: var(--mana-black);
 }
 
 .deck-filter-grid .deck-color-filter.color-r {
-  background: #f39a76;
+  background: var(--mana-red);
 }
 
 .deck-filter-grid .deck-color-filter.color-g {
-  background: #9fd3aa;
+  background: var(--mana-green);
 }
 
 .deck-filter-grid .deck-color-filter.color-c {
-  background: #c9c3ba;
+  background: var(--mana-colorless);
 }
 
 .deck-filter-grid input,
@@ -989,6 +1539,19 @@ button:disabled:focus {
   position: absolute;
   opacity: 0;
   pointer-events: none;
+}
+
+.deck-filter-mode span {
+  display: inline-flex;
+  align-items: center;
+  align-self: stretch;
+  margin: 0 -0.65rem;
+  padding: 0 0.65rem;
+}
+
+.deck-filter-mode input:checked + span {
+  color: var(--button-text);
+  background: var(--button-blue);
 }
 
 .deck-filter-mode label + label {
@@ -1201,6 +1764,10 @@ button:disabled:focus {
   font-weight: 700;
 }
 
+[data-session-color-mode="theme"] .version-list-latest {
+  color: var(--theme-accent);
+}
+
 .version-summary-button[aria-expanded="true"] {
   color: var(--button-text);
   background: var(--button-blue);
@@ -1240,15 +1807,30 @@ button:disabled:focus {
 }
 
 .version-change-badge-added {
-  background: #9fd3aa;
+  background: var(--mana-green);
 }
 
 .version-change-badge-modified {
-  background: #b8d9f5;
+  background: var(--mana-blue);
 }
 
 .version-change-badge-removed {
-  background: #f39a76;
+  background: var(--mana-red);
+}
+
+[data-session-color-mode="theme"] .version-change-badge-added,
+[data-session-color-mode="theme"] .version-change-badge-modified,
+[data-session-color-mode="theme"] .version-change-badge-removed {
+  background: var(--theme-accent-bg);
+  border-color: var(--theme-accent-border);
+}
+
+[data-theme="dark"][data-session-color-mode="theme"] .version-change-badge-added,
+[data-theme="dark"][data-session-color-mode="theme"] .version-change-badge-modified,
+[data-theme="dark"][data-session-color-mode="theme"] .version-change-badge-removed {
+  color: var(--theme-accent-contrast);
+  background: var(--theme-accent);
+  border-color: var(--theme-accent-border);
 }
 
 .version-change-list {
@@ -1277,6 +1859,12 @@ button:disabled:focus {
 
 .version-change-removed {
   color: #a75d43;
+}
+
+[data-session-color-mode="theme"] .version-change-added,
+[data-session-color-mode="theme"] .version-change-modified,
+[data-session-color-mode="theme"] .version-change-removed {
+  color: var(--theme-accent);
 }
 
 .message-panel {
@@ -1430,23 +2018,23 @@ button:disabled:focus {
 }
 
 .land-colors-panel[data-land-accent="W"] {
-  --panel-accent: #f2f0bd;
+  --panel-accent: var(--mana-white);
 }
 
 .land-colors-panel[data-land-accent="U"] {
-  --panel-accent: #b8d9f5;
+  --panel-accent: var(--mana-blue);
 }
 
 .land-colors-panel[data-land-accent="B"] {
-  --panel-accent: #b7ada8;
+  --panel-accent: var(--mana-black);
 }
 
 .land-colors-panel[data-land-accent="R"] {
-  --panel-accent: #f39a76;
+  --panel-accent: var(--mana-red);
 }
 
 .land-colors-panel[data-land-accent="G"] {
-  --panel-accent: #9fd3aa;
+  --panel-accent: var(--mana-green);
 }
 
 .matchup-history-panel,
@@ -1554,9 +2142,14 @@ button:disabled:focus {
   right: 0.55rem;
   width: 0.85rem;
   height: 0.85rem;
-  border: 1px solid #b8d9f5;
+  border: 1px solid var(--mana-blue);
   border-radius: 3px;
-  background: #b8d9f5;
+  background: var(--mana-blue);
+}
+
+[data-session-color-mode="theme"] .matchup-deck-link {
+  border-color: var(--theme-accent-border);
+  background: var(--theme-accent);
 }
 
 .matchup-result-victory {
@@ -1573,9 +2166,15 @@ button:disabled:focus {
 
 .matchup-deck-link:hover,
 .matchup-deck-link:focus {
-  border-color: #b8d9f5;
-  outline: 2px solid #b8d9f5;
+  border-color: var(--mana-blue);
+  outline: 2px solid var(--mana-blue);
   outline-offset: 2px;
+}
+
+[data-session-color-mode="theme"] .matchup-deck-link:hover,
+[data-session-color-mode="theme"] .matchup-deck-link:focus {
+  border-color: var(--theme-accent-border);
+  outline-color: var(--theme-accent-border);
 }
 
 .matchup-tournament,
@@ -2264,27 +2863,27 @@ button:disabled:focus {
 }
 
 .color-w {
-  background: #f2f0bd;
+  background: var(--mana-white);
 }
 
 .color-u {
-  background: #b8d9f5;
+  background: var(--mana-blue);
 }
 
 .color-b {
-  background: #b7ada8;
+  background: var(--mana-black);
 }
 
 .color-r {
-  background: #f39a76;
+  background: var(--mana-red);
 }
 
 .color-g {
-  background: #9fd3aa;
+  background: var(--mana-green);
 }
 
 .color-c {
-  background: #c9c3ba;
+  background: var(--mana-colorless);
 }
 
 .deck-table {
@@ -2457,23 +3056,23 @@ button:disabled:focus {
 }
 
 .mana-solid-white {
-  --mana-solid-bg: #f2f0bd;
+  --mana-solid-bg: var(--mana-white);
 }
 
 .mana-solid-blue {
-  --mana-solid-bg: #b8d9f5;
+  --mana-solid-bg: var(--mana-blue);
 }
 
 .mana-solid-black {
-  --mana-solid-bg: #b7ada8;
+  --mana-solid-bg: var(--mana-black);
 }
 
 .mana-solid-red {
-  --mana-solid-bg: #f39a76;
+  --mana-solid-bg: var(--mana-red);
 }
 
 .mana-solid-green {
-  --mana-solid-bg: #9fd3aa;
+  --mana-solid-bg: var(--mana-green);
 }
 
 .mana-solid-colorless,
@@ -2482,23 +3081,23 @@ button:disabled:focus {
 }
 
 .mana-split-left-white {
-  --mana-left-bg: #f2f0bd;
+  --mana-left-bg: var(--mana-white);
 }
 
 .mana-split-left-blue {
-  --mana-left-bg: #b8d9f5;
+  --mana-left-bg: var(--mana-blue);
 }
 
 .mana-split-left-black {
-  --mana-left-bg: #b7ada8;
+  --mana-left-bg: var(--mana-black);
 }
 
 .mana-split-left-red {
-  --mana-left-bg: #f39a76;
+  --mana-left-bg: var(--mana-red);
 }
 
 .mana-split-left-green {
-  --mana-left-bg: #9fd3aa;
+  --mana-left-bg: var(--mana-green);
 }
 
 .mana-split-left-colorless,
@@ -2507,23 +3106,23 @@ button:disabled:focus {
 }
 
 .mana-split-right-white {
-  --mana-right-bg: #f2f0bd;
+  --mana-right-bg: var(--mana-white);
 }
 
 .mana-split-right-blue {
-  --mana-right-bg: #b8d9f5;
+  --mana-right-bg: var(--mana-blue);
 }
 
 .mana-split-right-black {
-  --mana-right-bg: #b7ada8;
+  --mana-right-bg: var(--mana-black);
 }
 
 .mana-split-right-red {
-  --mana-right-bg: #f39a76;
+  --mana-right-bg: var(--mana-red);
 }
 
 .mana-split-right-green {
-  --mana-right-bg: #9fd3aa;
+  --mana-right-bg: var(--mana-green);
 }
 
 .mana-split-right-colorless,
@@ -2794,7 +3393,8 @@ button:disabled:focus {
 
   .import-fields,
   .import-metadata-row,
-  .deck-browser-row {
+  .deck-browser-row,
+  .settings-grid {
     grid-template-columns: 1fr;
   }
 
