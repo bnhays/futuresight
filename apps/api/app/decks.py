@@ -46,6 +46,7 @@ from app.models import (
     ParsedDeckCard,
     RandomCardArt,
 )
+from app.stats import normalize_name_key
 
 router = APIRouter()
 
@@ -71,6 +72,76 @@ def normalize_description(value: str | None) -> str | None:
 
 def normalize_deck_name(value: str | None) -> str:
     return (value or "").strip()[:120]
+
+
+def find_thumbnail_card_index(
+    cards: list[dict], thumbnail_card_name: str | None
+) -> int | None:
+    thumbnail_key = normalize_name_key(thumbnail_card_name or "")
+    if not thumbnail_key:
+        return None
+
+    for index, card in enumerate(cards):
+        card_name = (
+            card.get("name") or (card.get("card_data") or {}).get("name") or ""
+        )
+        if normalize_name_key(card_name) == thumbnail_key:
+            return index
+
+    return None
+
+
+async def backfill_thumbnail_art_crops(
+    db, deck_versions: list[tuple[dict, dict | None]]
+) -> None:
+    stale_thumbnails: list[tuple[dict, int, str]] = []
+    refresh_names: list[str] = []
+
+    for deck, version in deck_versions:
+        if not version:
+            continue
+
+        cards = version.get("cards", [])
+        thumbnail_card_name = normalize_thumbnail_card_name(
+            deck.get("thumbnail_card_name")
+        )
+        thumbnail_index = find_thumbnail_card_index(cards, thumbnail_card_name)
+        if thumbnail_index is None:
+            continue
+
+        card = cards[thumbnail_index]
+        card_data = card.get("card_data") or {}
+        if card_data.get("art_crop_uri"):
+            continue
+
+        card_name = card.get("name") or card_data.get("name")
+        if not card_name:
+            continue
+
+        stale_thumbnails.append((version, thumbnail_index, card_name))
+        refresh_names.append(card_name)
+
+    if not refresh_names:
+        return
+
+    unique_refresh_names = list(dict.fromkeys(refresh_names))
+    lookup_results, _metrics = await resolve_card_data(db, unique_refresh_names, [])
+
+    for version, thumbnail_index, card_name in stale_thumbnails:
+        refreshed_card_data = lookup_results.get(card_name)
+        if not refreshed_card_data or not refreshed_card_data.art_crop_uri:
+            continue
+
+        cards = version.get("cards", [])
+        card = cards[thumbnail_index]
+        card_data = card.get("card_data") or {}
+        if not card_data:
+            card["card_data"] = card_data
+        card_data["art_crop_uri"] = refreshed_card_data.art_crop_uri
+        await db.deck_versions.update_one(
+            {"_id": version["_id"]},
+            {"$set": {"cards": cards}},
+        )
 
 
 async def parse_and_resolve_decklist(
@@ -170,7 +241,7 @@ async def list_decks(
     cursor = db.decks.find().sort("updated_at", -1)
     if limit:
         cursor = cursor.limit(limit)
-    summaries = []
+    deck_versions = []
     async for deck in cursor:
         version = None
         if deck.get("active_version_id"):
@@ -178,6 +249,12 @@ async def list_decks(
                 {"_id": deck["active_version_id"]}
             )
 
+        deck_versions.append((deck, version))
+
+    await backfill_thumbnail_art_crops(db, deck_versions)
+
+    summaries = []
+    for deck, version in deck_versions:
         summaries.append(
             serialize_deck_summary(deck, version.get("cards", []) if version else [])
         )

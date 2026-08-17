@@ -13,6 +13,7 @@ class ImportedCardData(BaseModel):
     produced_mana: list[str] = Field(default_factory=list)
     legalities: dict[str, str] = Field(default_factory=dict)
     image_uri: str | None = None
+    art_crop_uri: str | None = None
     scryfall_uri: str | None = None
 
 

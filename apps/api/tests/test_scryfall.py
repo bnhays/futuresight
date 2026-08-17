@@ -1,4 +1,4 @@
-from app.scryfall import chunk_names, get_image_uri, normalize_card
+from app.scryfall import chunk_names, get_art_crop_uri, get_image_uri, normalize_card
 
 
 def test_get_image_uri_from_regular_card() -> None:
@@ -35,6 +35,40 @@ def test_get_image_uri_returns_none_when_card_has_no_images() -> None:
     assert get_image_uri({"card_faces": [{}]}) is None
 
 
+def test_get_art_crop_uri_from_regular_card() -> None:
+    raw = {
+        "image_uris": {
+            "art_crop": "https://example.com/art.jpg",
+        },
+    }
+
+    assert get_art_crop_uri(raw) == "https://example.com/art.jpg"
+
+
+def test_get_art_crop_uri_from_double_faced_card() -> None:
+    raw = {
+        "card_faces": [
+            {
+                "image_uris": {
+                    "art_crop": "https://example.com/front-art.jpg",
+                },
+            },
+            {
+                "image_uris": {
+                    "art_crop": "https://example.com/back-art.jpg",
+                },
+            },
+        ],
+    }
+
+    assert get_art_crop_uri(raw) == "https://example.com/front-art.jpg"
+
+
+def test_get_art_crop_uri_returns_none_when_card_has_no_images() -> None:
+    assert get_art_crop_uri({}) is None
+    assert get_art_crop_uri({"card_faces": [{}]}) is None
+
+
 def test_normalize_card_defaults_missing_optional_fields() -> None:
     raw = {
         "id": "abc123",
@@ -53,6 +87,7 @@ def test_normalize_card_defaults_missing_optional_fields() -> None:
         "produced_mana": [],
         "legalities": {},
         "image_uri": None,
+        "art_crop_uri": None,
         "scryfall_uri": None,
     }
 
@@ -69,7 +104,10 @@ def test_normalize_card_preserves_scryfall_fields() -> None:
         "color_identity": ["R"],
         "produced_mana": [],
         "legalities": {"modern": "legal"},
-        "image_uris": {"normal": "https://example.com/bolt.jpg"},
+        "image_uris": {
+            "normal": "https://example.com/bolt.jpg",
+            "art_crop": "https://example.com/bolt-art.jpg",
+        },
         "scryfall_uri": "https://scryfall.com/card/example",
     }
 
@@ -85,6 +123,7 @@ def test_normalize_card_preserves_scryfall_fields() -> None:
         "produced_mana": [],
         "legalities": {"modern": "legal"},
         "image_uri": "https://example.com/bolt.jpg",
+        "art_crop_uri": "https://example.com/bolt-art.jpg",
         "scryfall_uri": "https://scryfall.com/card/example",
     }
 

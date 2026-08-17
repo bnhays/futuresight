@@ -206,27 +206,25 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       return rail;
     }
 
-    function renderThumbnailCard(deck) {
+    function renderDeckArtBackdrop(deck) {
       const card = deck.thumbnail_card;
       if (!card) return null;
 
       const data = card.card_data || {};
-      const thumbnail = document.createElement("span");
-      thumbnail.className = "deck-list-thumbnail";
+      const artUri = data.art_crop_uri || data.image_uri;
+      if (!artUri) return null;
 
-      if (data.image_uri) {
-        const image = document.createElement("img");
-        image.src = data.image_uri;
-        image.alt = data.name || card.name || deck.thumbnail_card_name || "Deck thumbnail card";
-        thumbnail.append(image);
-      } else {
-        const placeholder = document.createElement("span");
-        placeholder.className = "deck-list-thumbnail-empty";
-        placeholder.textContent = data.name || card.name || deck.thumbnail_card_name || "Thumbnail";
-        thumbnail.append(placeholder);
-      }
+      const backdrop = document.createElement("span");
+      backdrop.className = "deck-list-art-backdrop";
+      backdrop.setAttribute("aria-hidden", "true");
 
-      return thumbnail;
+      const image = document.createElement("img");
+      image.src = artUri;
+      image.alt = "";
+      image.loading = "lazy";
+      backdrop.append(image);
+
+      return backdrop;
     }
 
     function renderDecks(decks, hasLoadedDecks = decks.length > 0) {
@@ -244,6 +242,8 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         const item = document.createElement("article");
         item.className = "recent-deck-link deck-list-item deck-list-item-with-rail";
         item.append(renderDeckColorRail(deck.color_identity || []));
+        const artBackdrop = renderDeckArtBackdrop(deck);
+        if (artBackdrop) item.append(artBackdrop);
 
         const link = document.createElement("a");
         link.className = "deck-list-content deck-list-link";
@@ -275,14 +275,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         description.hidden = !deck.description;
 
         deckInfo.append(title, updatedAt, description, meta);
-
-        const thumbnail = renderThumbnailCard(deck);
-        if (thumbnail) {
-          link.classList.add("deck-list-link-with-thumbnail");
-          link.append(thumbnail, deckInfo);
-        } else {
-          link.append(deckInfo);
-        }
+        link.append(deckInfo);
 
         const actions = document.createElement("span");
         actions.className = "deck-list-actions";
