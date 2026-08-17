@@ -1726,8 +1726,9 @@ button:disabled:focus {
 }
 
 .recent-deck-link:hover,
-.recent-deck-link:focus {
-  border-color: var(--color-focus-border);
+.recent-deck-link:focus,
+.recent-deck-link:focus-within {
+  border-color: var(--card-hover-border);
   background: var(--color-hover-bg);
   outline: none;
 }
@@ -1766,7 +1767,7 @@ button:disabled:focus {
   inset: 0 0 0 auto;
   width: min(58%, 34rem);
   pointer-events: none;
-  opacity: 0.82;
+  opacity: 1;
 }
 
 .deck-list-art-backdrop::before {
@@ -1866,6 +1867,35 @@ button:disabled:focus {
   flex-wrap: wrap;
   justify-content: flex-end;
   gap: 0.5rem;
+}
+
+.deck-list-actions .action-button {
+  box-shadow: 0 0.35rem 0.9rem rgb(0 0 0 / 18%);
+  transition:
+    border-color 0.16s ease,
+    filter 0.16s ease,
+    transform 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.deck-list-actions .action-button:hover,
+.deck-list-actions .action-button:focus {
+  color: var(--button-text);
+  filter: brightness(1.08) saturate(1.08);
+  transform: translateY(-1px);
+  box-shadow: 0 0.55rem 1.1rem rgb(0 0 0 / 26%);
+}
+
+.deck-list-actions .version-button.hollow-button:hover,
+.deck-list-actions .version-button.hollow-button:focus {
+  border-color: var(--button-white);
+  background: var(--button-white);
+}
+
+.deck-list-actions .danger-button.hollow-button:hover,
+.deck-list-actions .danger-button.hollow-button:focus {
+  border-color: var(--button-red);
+  background: var(--button-red);
 }
 
 .deck-version-edit-form {
