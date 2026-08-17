@@ -2182,7 +2182,17 @@ button:disabled:focus {
 }
 
 .deck-sections-stacks {
-  grid-template-columns: minmax(11rem, 15rem) minmax(0, 82rem);
+  width: 100%;
+  max-width: 100rem;
+  grid-template-columns: minmax(20.75rem, 21.5rem) minmax(0, 1fr);
+  column-gap: 1.75rem;
+  justify-self: center;
+  margin: 0 auto;
+  transform: none;
+}
+
+.deck-sections-stacks .deck-preview-column {
+  transform: none;
 }
 
 .deck-preview-column {
@@ -2289,7 +2299,9 @@ button:disabled:focus {
 }
 
 .deck-sections-stacks .matchup-history-panel {
-  width: calc(100% - 10rem);
+  justify-self: center;
+  width: min(100%, 72rem);
+  transform: none;
 }
 
 .matchup-history-heading {
@@ -2503,16 +2515,17 @@ button:disabled:focus {
   --deck-stack-card-overlap: 1.75rem;
   display: flex;
   align-items: flex-start;
+  justify-content: flex-start;
   gap: 1.1rem;
   min-width: 0;
   overflow-x: auto;
-  padding: 0.15rem 0.15rem 0.8rem;
+  padding: 0.15rem 1rem 0.8rem;
   scrollbar-gutter: stable;
 }
 
 .deck-stacks-mainboard,
 .deck-stacks-sideboard {
-  grid-column: 2 / -1;
+  grid-column: 2;
 }
 
 .deck-stacks-sideboard {
