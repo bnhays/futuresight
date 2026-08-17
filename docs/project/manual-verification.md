@@ -35,6 +35,8 @@ Manual verification was performed against the Docker-based application build.
 - The deck detail Versions button should open a version list page.
 - Version names and change notes should save from the version list without changing deck contents.
 - Version list items should open preview-only deck detail pages.
+- Version list items should show card-change summaries when previous version data is available.
+- Forking a historical version should create a new deck with the selected version's decklist and metadata snapshot.
 - Historical preview pages should not allow editing or quick quantity updates.
 - Restoring an older version should duplicate it as a new latest version.
 - Deck detail pages should show basic deck analysis panels for API-provided mana curve, land-produced-color distribution, and card type counts.
@@ -42,7 +44,10 @@ Manual verification was performed against the Docker-based application build.
 - Matchup entries should show visual result badges when the outcome can be classified.
 - Matchup entries linked to another saved deck should provide a link to that opponent deck.
 - The matchup form should reject blank fields and save entries with opponent deck, tournament, outcome, and date.
+- Existing matchup entries should be editable and deletable from the deck detail matchup history.
 - Quick quantity updates should mark the deck as changed and allow the updated decklist to be saved.
+- Deck detail view mode controls should switch between list, stacks, and gallery layouts without changing saved deck data.
+- Export should produce the selected deck's current decklist text.
 - Deleted decks should be removed from the saved deck list and should no longer open in the detail view.
 - Error states should provide a visible message or safe empty state instead of breaking the page.
 - The API tests should cover common parser formats, Scryfall card normalization, card image selection, and Scryfall collection chunking.
@@ -69,4 +74,4 @@ Manual verification was performed against the Docker-based application build.
 
 The prototype satisfies the core project goal for this update: users can build, run, import, inspect, edit, update, and delete decks through the full stack. The remaining issues are visual rendering and layout polish rather than blockers for the primary deck-management workflow.
 
-Future work should improve edge-case mana rendering, tighten dense row layout behavior, and continue the planned implementation of deferred features such as legality checks, expanded statistics, richer matchup and tournament tracking, and version comparison.
+Future work should improve edge-case mana rendering, tighten dense row layout behavior, and continue the planned implementation of deferred features such as legality checks, expanded statistics beyond the current API-backed panels, richer matchup and tournament tracking, and version comparison.
