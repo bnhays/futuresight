@@ -26,52 +26,75 @@ export function showInspectCard({ card, inspectPanel, inspectContent, renderColo
   const data = card.card_data || {};
   inspectContent.innerHTML = "";
 
+  const shell = document.createElement("article");
+  shell.className = "inspect-card";
+
+  const header = document.createElement("header");
+  header.className = "inspect-card-header";
+
   const title = document.createElement("h2");
   title.textContent = data.name || card.name;
-  inspectContent.append(title);
+  header.append(title);
+
+  const typeLine = document.createElement("p");
+  typeLine.className = "inspect-card-type-line";
+  typeLine.textContent = data.type_line || "Unknown";
+  header.append(typeLine);
+  shell.append(header);
 
   if (data.image_uri) {
+    const media = document.createElement("div");
+    media.className = "inspect-card-media";
+
     const image = document.createElement("img");
     image.src = data.image_uri;
     image.alt = data.name || card.name;
-    inspectContent.append(image);
+    media.append(image);
+    shell.append(media);
   }
 
   const details = document.createElement("dl");
-  [
-    ["Quantity", card.quantity],
-    ["Type", data.type_line || "Unknown"],
-    ["Mana Value", data.cmc ?? ""],
-  ].forEach(([label, value]) => {
+  details.className = "inspect-card-facts";
+
+  function appendFact(label, value) {
+    const item = document.createElement("div");
+    item.className = "inspect-card-fact";
+
     const dt = document.createElement("dt");
     dt.textContent = label;
     const dd = document.createElement("dd");
-    dd.textContent = String(value);
-    details.append(dt, dd);
-  });
+    if (value instanceof Node) {
+      dd.append(value);
+    } else {
+      dd.textContent = String(value);
+    }
 
-  const manaDt = document.createElement("dt");
-  manaDt.textContent = "Mana Cost";
-  const manaDd = document.createElement("dd");
-  manaDd.append(renderManaCost(data.mana_cost || ""));
-  details.append(manaDt, manaDd);
+    item.append(dt, dd);
+    details.append(item);
+  }
 
-  const colorDt = document.createElement("dt");
-  colorDt.textContent = "Color Identity";
-  const colorDd = document.createElement("dd");
-  colorDd.append(renderColorSquares(data.color_identity || []));
-  details.append(colorDt, colorDd);
-  inspectContent.append(details);
+  [
+    ["Quantity", card.quantity],
+    ["Mana Value", data.cmc ?? ""],
+  ].forEach(([label, value]) => appendFact(label, value));
+
+  appendFact("Mana Cost", renderManaCost(data.mana_cost || ""));
+  appendFact("Color Identity", renderColorSquares(data.color_identity || []));
+  shell.append(details);
 
   if (data.oracle_text) {
+    const oracleSection = document.createElement("section");
+    oracleSection.className = "inspect-card-oracle";
+
     const oracleHeading = document.createElement("h3");
-    oracleHeading.textContent = "Oracle Text:";
-    inspectContent.append(oracleHeading);
+    oracleHeading.textContent = "Oracle Text";
+    oracleSection.append(oracleHeading);
 
     const oracle = document.createElement("p");
     oracle.className = "oracle-text";
     oracle.textContent = data.oracle_text;
-    inspectContent.append(oracle);
+    oracleSection.append(oracle);
+    shell.append(oracleSection);
   }
 
   if (data.scryfall_uri) {
@@ -81,8 +104,9 @@ export function showInspectCard({ card, inspectPanel, inspectContent, renderColo
     link.target = "_blank";
     link.rel = "noreferrer";
     link.textContent = "View On Scryfall";
-    inspectContent.append(link);
+    shell.append(link);
   }
 
+  inspectContent.append(shell);
   inspectPanel.hidden = false;
 }
