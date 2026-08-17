@@ -24,8 +24,18 @@ const { title } = Astro.props;
         const headerPreferenceKey = "future-sight-session-color";
         const headerManaColors = ["white", "blue", "black", "red", "green"];
         const siteThemeKey = "future-sight-site-theme";
-        const siteThemes = ["default", "arcane", "parchment", "arena", "phyrexian", "kamigawa-neon", "high-contrast"];
-        const expressiveThemes = ["arcane", "parchment", "arena", "phyrexian", "kamigawa-neon"];
+        const siteThemes = [
+          "default",
+          "arcane",
+          "parchment",
+          "arena",
+          "phyrexian",
+          "kamigawa-neon",
+          "theros",
+          "innistrad",
+          "high-contrast",
+        ];
+        const expressiveThemes = ["arcane", "parchment", "arena", "phyrexian", "kamigawa-neon", "theros", "innistrad"];
         const manaPaletteKey = "future-sight-mana-palette";
         const manaPalettes = ["classic", "vivid", "soft"];
 
@@ -144,7 +154,7 @@ const { title } = Astro.props;
         const headerManaColors = ["white", "blue", "black", "red", "green"];
         const headerPreferenceKey = "future-sight-session-color";
         const siteThemeKey = "future-sight-site-theme";
-        const expressiveThemes = ["arcane", "parchment", "arena", "phyrexian", "kamigawa-neon"];
+        const expressiveThemes = ["arcane", "parchment", "arena", "phyrexian", "kamigawa-neon", "theros", "innistrad"];
         const randomize = document.querySelector("#theme-randomize");
 
         function updateRandomizeVisibility() {

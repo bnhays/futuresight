@@ -22,6 +22,8 @@ import BaseLayout from "../layouts/BaseLayout.astro";
               <option value="arena">Arena</option>
               <option value="phyrexian">Phyrexian</option>
               <option value="kamigawa-neon">Kamigawa Neon</option>
+              <option value="theros">Theros</option>
+              <option value="innistrad">Innistrad</option>
               <option value="high-contrast">High Contrast</option>
             </select>
           </label>
@@ -114,8 +116,18 @@ import BaseLayout from "../layouts/BaseLayout.astro";
       defaultDeckSort: "future-sight-default-deck-sort",
       defaultImportFormat: "future-sight-default-import-format",
     };
-    const SITE_THEMES = ["default", "arcane", "parchment", "arena", "phyrexian", "kamigawa-neon", "high-contrast"];
-    const EXPRESSIVE_THEMES = ["arcane", "parchment", "arena", "phyrexian", "kamigawa-neon"];
+    const SITE_THEMES = [
+      "default",
+      "arcane",
+      "parchment",
+      "arena",
+      "phyrexian",
+      "kamigawa-neon",
+      "theros",
+      "innistrad",
+      "high-contrast",
+    ];
+    const EXPRESSIVE_THEMES = ["arcane", "parchment", "arena", "phyrexian", "kamigawa-neon", "theros", "innistrad"];
     const COLOR_MODES = ["light", "dark"];
     const SESSION_COLORS = ["random", "white", "blue", "black", "red", "green"];
     const MANA_PALETTES = ["classic", "vivid", "soft"];
