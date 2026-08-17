@@ -11,6 +11,7 @@ from app.deck_schemas import (
     DeckImportRequest,
     DeckImportResponse,
     DeckUpdateResponse,
+    DeckVersionForkRequest,
     DeckVersionMetadataRequest,
     DeckVersionRestoreRequest,
 )
@@ -45,6 +46,7 @@ from app.models import (
     ParsedDeckCard,
     RandomCardArt,
 )
+from app.stats import normalize_name_key
 
 router = APIRouter()
 
@@ -66,6 +68,80 @@ def normalize_change_note(value: str | None) -> str | None:
 def normalize_description(value: str | None) -> str | None:
     description = (value or "").strip()
     return description[:150] or None
+
+
+def normalize_deck_name(value: str | None) -> str:
+    return (value or "").strip()[:120]
+
+
+def find_thumbnail_card_index(
+    cards: list[dict], thumbnail_card_name: str | None
+) -> int | None:
+    thumbnail_key = normalize_name_key(thumbnail_card_name or "")
+    if not thumbnail_key:
+        return None
+
+    for index, card in enumerate(cards):
+        card_name = (
+            card.get("name") or (card.get("card_data") or {}).get("name") or ""
+        )
+        if normalize_name_key(card_name) == thumbnail_key:
+            return index
+
+    return None
+
+
+async def backfill_thumbnail_art_crops(
+    db, deck_versions: list[tuple[dict, dict | None]]
+) -> None:
+    stale_thumbnails: list[tuple[dict, int, str]] = []
+    refresh_names: list[str] = []
+
+    for deck, version in deck_versions:
+        if not version:
+            continue
+
+        cards = version.get("cards", [])
+        thumbnail_card_name = normalize_thumbnail_card_name(
+            deck.get("thumbnail_card_name")
+        )
+        thumbnail_index = find_thumbnail_card_index(cards, thumbnail_card_name)
+        if thumbnail_index is None:
+            continue
+
+        card = cards[thumbnail_index]
+        card_data = card.get("card_data") or {}
+        if card_data.get("art_crop_uri"):
+            continue
+
+        card_name = card.get("name") or card_data.get("name")
+        if not card_name:
+            continue
+
+        stale_thumbnails.append((version, thumbnail_index, card_name))
+        refresh_names.append(card_name)
+
+    if not refresh_names:
+        return
+
+    unique_refresh_names = list(dict.fromkeys(refresh_names))
+    lookup_results, _metrics = await resolve_card_data(db, unique_refresh_names, [])
+
+    for version, thumbnail_index, card_name in stale_thumbnails:
+        refreshed_card_data = lookup_results.get(card_name)
+        if not refreshed_card_data or not refreshed_card_data.art_crop_uri:
+            continue
+
+        cards = version.get("cards", [])
+        card = cards[thumbnail_index]
+        card_data = card.get("card_data") or {}
+        if not card_data:
+            card["card_data"] = card_data
+        card_data["art_crop_uri"] = refreshed_card_data.art_crop_uri
+        await db.deck_versions.update_one(
+            {"_id": version["_id"]},
+            {"$set": {"cards": cards}},
+        )
 
 
 async def parse_and_resolve_decklist(
@@ -165,7 +241,7 @@ async def list_decks(
     cursor = db.decks.find().sort("updated_at", -1)
     if limit:
         cursor = cursor.limit(limit)
-    summaries = []
+    deck_versions = []
     async for deck in cursor:
         version = None
         if deck.get("active_version_id"):
@@ -173,6 +249,12 @@ async def list_decks(
                 {"_id": deck["active_version_id"]}
             )
 
+        deck_versions.append((deck, version))
+
+    await backfill_thumbnail_art_crops(db, deck_versions)
+
+    summaries = []
+    for deck, version in deck_versions:
         summaries.append(
             serialize_deck_summary(deck, version.get("cards", []) if version else [])
         )
@@ -305,6 +387,89 @@ async def restore_deck_version(
         cards=[ParsedDeckCard(**card) for card in version_document["cards"]],
         warnings=version_document["warnings"],
         import_metrics=DeckImportMetrics(**version_document["import_metrics"]),
+    )
+
+
+@router.post("/{deck_id}/versions/{version_id}/fork", response_model=DeckImportResponse)
+async def fork_deck_version(
+    deck_id: str,
+    version_id: str,
+    payload: DeckVersionForkRequest,
+) -> DeckImportResponse:
+    db = get_database()
+    deck_object_id = parse_object_id(deck_id)
+    deck = await db.decks.find_one({"_id": deck_object_id})
+    if not deck:
+        raise HTTPException(status_code=404, detail="Deck not found.")
+
+    source_version = await get_selected_version(db, deck, version_id=version_id)
+    now = utc_now()
+    deck_name = normalize_deck_name(payload.name)
+    if not deck_name:
+        raise HTTPException(status_code=400, detail="Deck name cannot be blank.")
+
+    deck_format = source_version.get("format") or deck.get("format") or "modern"
+    deck_description = source_version.get("description")
+    thumbnail_card_name = source_version.get("thumbnail_card_name")
+    source_version_number = source_version.get("version_number") or 1
+    source_deck_name = source_version.get("name") or deck.get("name") or "Untitled Deck"
+    fork_change_note = f"Forked from {source_deck_name} v{source_version_number}."
+    source_cards = source_version.get("cards") or []
+    warnings = source_version.get("warnings") or []
+    import_metrics = source_version.get("import_metrics") or {}
+
+    deck_result = await db.decks.insert_one(
+        {
+            "name": deck_name,
+            "format": deck_format,
+            "description": deck_description,
+            "thumbnail_card_name": thumbnail_card_name,
+            "active_version_id": None,
+            "created_at": now,
+            "updated_at": now,
+        }
+    )
+    version_result = await db.deck_versions.insert_one(
+        {
+            "deck_id": deck_result.inserted_id,
+            "version_number": 1,
+            "version_name": source_version.get("version_name"),
+            "change_note": fork_change_note,
+            "name": deck_name,
+            "format": deck_format,
+            "description": deck_description,
+            "thumbnail_card_name": thumbnail_card_name,
+            "cards": source_cards,
+            "matchups": [],
+            "warnings": warnings,
+            "import_metrics": import_metrics,
+            "raw_decklist": source_version.get("raw_decklist"),
+            "created_at": now,
+        }
+    )
+    await db.decks.update_one(
+        {"_id": deck_result.inserted_id},
+        {
+            "$set": {
+                "active_version_id": version_result.inserted_id,
+                "active_version_number": 1,
+            }
+        },
+    )
+
+    return DeckImportResponse(
+        id=str(deck_result.inserted_id),
+        active_version_id=str(version_result.inserted_id),
+        version_number=1,
+        version_name=source_version.get("version_name"),
+        change_note=fork_change_note,
+        name=deck_name,
+        format=deck_format,
+        description=deck_description,
+        thumbnail_card_name=thumbnail_card_name,
+        cards=[ParsedDeckCard(**card) for card in source_cards],
+        warnings=warnings,
+        import_metrics=DeckImportMetrics(**import_metrics),
     )
 
 

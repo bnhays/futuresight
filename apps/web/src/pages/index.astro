@@ -5,65 +5,89 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 <BaseLayout title="Future Sight">
   <section class="import-shell">
     <div class="import-layout">
-      <form id="import-form" class="import-form">
-        <div class="import-fields">
-          <label>
-            <span>Deck Name</span>
-            <input id="deck-name" name="name" type="text" autocomplete="off" placeholder="Deck name" />
-          </label>
-
-          <label>
-            <span>Format</span>
-            <select id="deck-format" name="format">
-              <option value="modern" selected>Modern</option>
-              <option value="standard">Standard</option>
-              <option value="pioneer">Pioneer</option>
-              <option value="legacy">Legacy</option>
-              <option value="vintage">Vintage</option>
-              <option value="pauper">Pauper</option>
-            </select>
-          </label>
-        </div>
-
-        <label>
-          <span>Thumbnail Card</span>
-          <input
-            id="thumbnail-card-name"
-            name="thumbnail_card_name"
-            type="text"
-            autocomplete="off"
-            placeholder="Card name"
-          />
-        </label>
-
-        <label>
-          <span>Description</span>
-          <input
-            id="deck-description"
-            name="description"
-            type="text"
-            maxlength="150"
-            autocomplete="off"
-            placeholder="Deck description"
-          />
-        </label>
-
-        <label for="decklist">Decklist</label>
-        <textarea
-          id="decklist"
-          name="decklist"
-          rows="16"
-          spellcheck="false"
-          placeholder={`4 Lightning Bolt
+      <div class="import-main-column">
+        <form id="import-form" class="import-form">
+          <div class="decklist-field">
+            <label for="decklist">Decklist</label>
+            <p class="decklist-helper">Paste a decklist from Arena, Moxfield, MTGGoldfish, or plain text.</p>
+            <textarea
+              id="decklist"
+              name="decklist"
+              rows="13"
+              spellcheck="false"
+              placeholder={`4 Lightning Bolt
 4x Counterspell
 Sideboard
 2 Negate`}
-        ></textarea>
-        <div class="form-actions">
-          <button id="import-button" type="submit">Import</button>
-          <span id="import-status" role="status" aria-live="polite"></span>
+            ></textarea>
+            <div class="decklist-actions">
+              <button id="clear-decklist" class="action-button muted hollow-button compact-action" type="button" hidden>
+                Clear
+              </button>
+              <span id="decklist-counts" class="decklist-counts" aria-live="polite">Mainboard 0 | Sideboard 0 | Unique 0</span>
+            </div>
+          </div>
+
+          <div class="import-metadata">
+            <div class="import-metadata-row import-metadata-primary">
+              <label>
+                <span>Deck Name</span>
+                <input id="deck-name" name="name" type="text" autocomplete="off" placeholder="Deck name" />
+              </label>
+
+              <label>
+                <span>Format</span>
+                <select id="deck-format" name="format">
+                  <option value="modern" selected>Modern</option>
+                  <option value="standard">Standard</option>
+                  <option value="pioneer">Pioneer</option>
+                  <option value="legacy">Legacy</option>
+                  <option value="vintage">Vintage</option>
+                  <option value="pauper">Pauper</option>
+                </select>
+              </label>
+            </div>
+
+            <div class="import-metadata-row import-metadata-secondary">
+              <label>
+                <span>Description</span>
+                <input
+                  id="deck-description"
+                  name="description"
+                  type="text"
+                  maxlength="150"
+                  autocomplete="off"
+                  placeholder="Deck description"
+                />
+              </label>
+
+              <label>
+                <span>Thumbnail Card</span>
+                <input
+                  id="thumbnail-card-name"
+                  name="thumbnail_card_name"
+                  type="text"
+                  autocomplete="off"
+                  placeholder="Card name"
+                />
+              </label>
+            </div>
+          </div>
+          <div class="form-actions">
+            <button id="import-button" type="submit" disabled>Import</button>
+            <span id="import-status" role="status" aria-live="polite"></span>
+          </div>
+        </form>
+
+        <div class="mana-rail" aria-hidden="true">
+          <span class="color-w"></span>
+          <span class="color-u"></span>
+          <span class="color-b"></span>
+          <span class="color-r"></span>
+          <span class="color-g"></span>
+          <span class="color-c"></span>
         </div>
-      </form>
+      </div>
 
       <div class="import-side-panels">
         <aside class="recent-decks-panel" aria-labelledby="recent-decks-heading">
@@ -82,7 +106,7 @@ Sideboard
             <button id="refresh-card-art" class="action-button version-button hollow-button compact-action" type="button">Refresh</button>
           </div>
           <div id="random-card-art" class="random-card-art" aria-live="polite">
-            <p class="empty-state">Loading card art...</p>
+            <div class="card-art-skeleton" aria-label="Loading card art" role="status"></div>
           </div>
         </aside>
       </div>
@@ -99,10 +123,73 @@ Sideboard
     const deckDescription = document.querySelector("#deck-description");
     const textarea = document.querySelector("#decklist");
     const button = document.querySelector("#import-button");
+    const clearDecklistButton = document.querySelector("#clear-decklist");
+    const decklistCounts = document.querySelector("#decklist-counts");
     const status = document.querySelector("#import-status");
     const recentDecksList = document.querySelector("#recent-decks-list");
     const randomCardArt = document.querySelector("#random-card-art");
     const refreshCardArtButton = document.querySelector("#refresh-card-art");
+    let isImporting = false;
+
+    function applyDefaultImportFormat() {
+      const supportedFormats = ["modern", "standard", "pioneer", "legacy", "vintage", "pauper"];
+      try {
+        const defaultFormat = window.localStorage.getItem("future-sight-default-import-format");
+        if (supportedFormats.includes(defaultFormat)) {
+          deckFormat.value = defaultFormat;
+        }
+      } catch {
+        // Keep the form default when preference storage is unavailable.
+      }
+    }
+
+    function updateImportButtonState() {
+      const hasDecklist = Boolean(textarea.value.trim());
+      button.disabled = !hasDecklist || isImporting;
+      clearDecklistButton.hidden = !hasDecklist || isImporting;
+      if (hasDecklist && status.textContent === "Paste a decklist first.") {
+        status.textContent = "";
+      }
+    }
+
+    function parseDecklistCounts(text) {
+      const uniqueNames = new Set();
+      let section = "mainboard";
+      let mainboard = 0;
+      let sideboard = 0;
+
+      text.split(/\r?\n/).forEach((line) => {
+        const trimmed = line.trim();
+        if (!trimmed) return;
+
+        const normalized = trimmed.toLowerCase();
+        if (["sideboard", "side board", "sb"].includes(normalized)) {
+          section = "sideboard";
+          return;
+        }
+
+        const match = trimmed.match(/^(\d+)\s*x?\s+(.+)$/i);
+        if (!match) return;
+
+        const quantity = Number(match[1]);
+        const name = match[2].replace(/\s+\*.*$/, "").trim();
+        if (!Number.isFinite(quantity) || quantity <= 0 || !name) return;
+
+        uniqueNames.add(name.toLowerCase());
+        if (section === "sideboard") {
+          sideboard += quantity;
+        } else {
+          mainboard += quantity;
+        }
+      });
+
+      return { mainboard, sideboard, unique: uniqueNames.size };
+    }
+
+    function updateDecklistCounts() {
+      const counts = parseDecklistCounts(textarea.value);
+      decklistCounts.textContent = `Mainboard ${counts.mainboard} | Sideboard ${counts.sideboard} | Unique ${counts.unique}`;
+    }
 
     function renderRecentDecks(decks) {
       recentDecksList.innerHTML = "";
@@ -197,8 +284,18 @@ Sideboard
       randomCardArt.append(empty);
     }
 
+    function renderRandomCardSkeleton() {
+      randomCardArt.innerHTML = "";
+      const skeleton = document.createElement("div");
+      skeleton.className = "card-art-skeleton";
+      skeleton.setAttribute("aria-label", "Loading card art");
+      skeleton.setAttribute("role", "status");
+      randomCardArt.append(skeleton);
+    }
+
     async function loadRandomCardArt() {
       refreshCardArtButton.disabled = true;
+      renderRandomCardSkeleton();
 
       try {
         const response = await fetch(`${API_URL}/decks/random-card-art`);
@@ -230,8 +327,9 @@ Sideboard
         return;
       }
 
-      button.disabled = true;
-      status.textContent = "Parsing...";
+      isImporting = true;
+      updateImportButtonState();
+      status.textContent = "Resolving cards and saving deck...";
 
       try {
         const response = await fetch(`${API_URL}/decks/import`, {
@@ -255,17 +353,32 @@ Sideboard
           status.textContent = "Saved. Opening deck view...";
           window.location.href = `/decks/view?id=${encodeURIComponent(data.id)}`;
         } else {
-          status.textContent = "No cards found.";
+          status.textContent = "No cards were found in that decklist.";
         }
       } catch (error) {
-        status.textContent = error instanceof Error ? error.message : "Could not import decklist.";
+        status.textContent = error instanceof Error ? error.message : "Could not import decklist. Your pasted text is still here.";
       } finally {
-        button.disabled = false;
+        isImporting = false;
+        updateImportButtonState();
       }
     });
 
+    textarea.addEventListener("input", () => {
+      updateImportButtonState();
+      updateDecklistCounts();
+    });
+    clearDecklistButton.addEventListener("click", () => {
+      textarea.value = "";
+      status.textContent = "";
+      updateImportButtonState();
+      updateDecklistCounts();
+      textarea.focus();
+    });
     refreshCardArtButton.addEventListener("click", loadRandomCardArt);
 
+    applyDefaultImportFormat();
+    updateImportButtonState();
+    updateDecklistCounts();
     loadRecentDecks();
     loadRandomCardArt();
   </script>

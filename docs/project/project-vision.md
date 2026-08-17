@@ -10,10 +10,10 @@ The primary users are competitive Magic: The Gathering players who regularly tun
 - Help users build and view decks verified as legal with format rules.
 - Track deck changes over time so each version can be reviewed independently.
 - Record tournament and matchup results alongside notes for later analysis.
-- Provide simple deck statistics such as mana curve and color distribution.
+- Provide simple deck statistics such as mana curve, land color production, and card type breakdown.
 
 ## Why This Project
 This project is useful to me because it solves a problem I personally have while playing and tuning decks, and tracking iterations is a feature that a number of other players I have interacted with have expressed an interest in. Similar features exist on other platforms, however they are often obscured/behind paywalls/difficult to use, and are not as geared towards competitive players and tournaments specifically. It also connects well to my experience working with Scryfall on other MTG-related projects, which makes the data side of the project especially practical and enjoyable.
 
 ## Initial Scope
-The first version should focus on deck importing and viewing, deck editing, Scryfall-backed card data, legality checking, version history, matchup logging, and basic deck statistics. Deck import, viewing, editing, card inspection, linear version history, basic per-version matchup logging, client-side deck analysis panels, and Scryfall-backed card caching are already underway. Legality checking, version comparison, richer matchup and tournament tracking, and backend statistics remain planned pieces of the first-version experience. More advanced ideas like simulated opening hands, branching deck trees, and other exploratory analysis features should wait for later versions.
+The first version should focus on deck importing and viewing, deck editing, Scryfall-backed card data, legality checking, version history, matchup logging, and basic deck statistics. Deck import, viewing, editing, card inspection, linear version history, historical version restore and forking, basic per-version matchup management, API-backed deck analysis panels, and Scryfall-backed card caching are already underway. Legality checking, version comparison, and richer matchup and tournament tracking remain planned pieces of the first-version experience. More advanced ideas like simulated opening hands, branching deck trees, and other exploratory analysis features should wait for later versions.

@@ -88,14 +88,7 @@ export function renderMatchupHistory({
 
     const outcomeClass = matchupOutcomeClass(matchup.outcome);
     if (outcomeClass) {
-      const resultIndicator = document.createElement("span");
-      resultIndicator.className = `matchup-result-indicator ${outcomeClass}`;
-      if (matchup.opponent_deck_id) {
-        resultIndicator.classList.add("matchup-result-with-deck-link");
-      }
-      resultIndicator.setAttribute("aria-label", matchup.outcome);
-      resultIndicator.title = matchup.outcome;
-      card.append(resultIndicator);
+      card.classList.add(outcomeClass);
     }
 
     if (matchup.opponent_deck_id) {

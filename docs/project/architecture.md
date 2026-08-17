@@ -1,7 +1,7 @@
 # Architecture
 
 ## Overview
-Future Sight is implemented as a small full-stack monorepo with an Astro client, a FastAPI server, and MongoDB persistence. The current architecture supports deck import, deck browsing, deck detail inspection, deck editing, linear deck version history, basic per-version matchup logging, API-backed deck analysis panels, card quantity updates, deck deletion, Scryfall card lookup, and cached card data.
+Future Sight is implemented as a small full-stack monorepo with an Astro client, a FastAPI server, and MongoDB persistence. The current architecture supports deck import, deck browsing, deck detail inspection, deck editing, linear deck version history, historical version restore and forking, basic per-version matchup management, API-backed deck analysis panels, card quantity updates, deck export, deck deletion, Scryfall card lookup, and cached card data.
 
 The implementation is prototype-focused. Some planned product areas, including full legality checks, broader matchup and tournament tracking, expanded statistics, and version comparison, are represented by placeholder modules or empty routes but are not complete user-facing features.
 
@@ -10,9 +10,9 @@ The client lives in `apps/web` and is built with Astro. The pages are rendered a
 
 - `/`: deck import page with deck metadata fields, decklist input, recent deck links, and random card art from the API.
 - `/decks`: saved deck list with color identity, optional thumbnail card, description, updated time, and delete controls.
-- `/decks/versions?id={deck_id}`: deck version list page with saved versions shown in the same list style as saved decks, plus metadata editing for version names and change notes.
-- `/decks/view?id={deck_id}`: active deck detail page with API-grouped card tables, Versions button, card inspection panel, API-provided mana curve, API-provided land-produced-color summary, matchup history, matchup logging form, edit form, quick quantity controls, save/discard controls, and delete action.
-- `/decks/view?id={deck_id}&version_id={version_id}`: preview-only deck version detail page with grouped card tables, card inspection panel, analysis panels, matchup history, matchup logging form, and restore action for historical versions.
+- `/decks/versions?id={deck_id}`: deck version list page with saved versions shown in the same list style as saved decks, card-change summaries, metadata editing for version names and change notes, and controls for forking historical versions into new decks.
+- `/decks/view?id={deck_id}`: active deck detail page with list, stack, and gallery display modes; API-grouped card tables; Versions and Fork buttons; card inspection panel; API-provided mana curve, land-produced-color summary, and card type breakdown; matchup history management; edit form; quick quantity controls; export action; save/discard controls; and delete action.
+- `/decks/view?id={deck_id}&version_id={version_id}`: preview-only deck version detail page with grouped card tables, card inspection panel, analysis panels, matchup history management, fork action, and restore action for historical versions.
 
 The client reads `PUBLIC_API_URL` to determine the API base URL and defaults to `http://localhost:8000`.
 
@@ -24,7 +24,7 @@ The server lives in `apps/api` and is implemented with FastAPI. It uses Motor fo
 Implemented routers:
 
 - `/health`: returns basic API health status.
-- `/decks`: handles deck import, list, detail, update, delete, version history, version restore, and per-version matchup behavior.
+- `/decks`: handles deck import, list, detail, update, delete, version history, version restore, version forking, and per-version matchup behavior.
 
 Supporting modules:
 
@@ -34,7 +34,7 @@ Supporting modules:
 - `deck_versions.py`: handles deck version lookup, numbering, and card-change summaries.
 - `cards.py`: handles cached card documents and Scryfall-backed card resolution.
 - `matchups.py`: normalizes and serializes deck-version matchup history entries.
-- `stats.py`: derives deck color identity, grouped cards, mana curve, and land color production.
+- `stats.py`: derives deck color identity, grouped cards, mana curve, land color production, and card type breakdowns.
 - `scryfall.py`: resolves card names through Scryfall and normalizes imported card data.
 - `db.py`: creates the MongoDB client and ensures indexes.
 - `models.py`: defines shared response models for decks, deck versions, grouped cards, deck statistics, random card art, basic matchup history entries, cards, and import metrics.
@@ -50,8 +50,11 @@ Current API behavior is centered on deck management.
 - `GET /decks/{deck_id}/versions`: returns lightweight version history summaries for the deck.
 - `PATCH /decks/{deck_id}/versions/{version_id}`: updates version metadata such as version name and change note.
 - `POST /decks/{deck_id}/versions/{version_id}/restore`: duplicates the selected historical version as a new latest version.
+- `POST /decks/{deck_id}/versions/{version_id}/fork`: duplicates the selected version into a new deck with its own version history.
 - `GET /decks/{deck_id}/versions/{version_id}/matchups`: returns matchup entries stored on a specific deck version.
 - `POST /decks/{deck_id}/versions/{version_id}/matchups`: appends a basic matchup entry to a specific deck version.
+- `PUT /decks/{deck_id}/versions/{version_id}/matchups/{matchup_id}`: updates an existing matchup entry on a specific deck version.
+- `DELETE /decks/{deck_id}/versions/{version_id}/matchups/{matchup_id}`: deletes an existing matchup entry from a specific deck version.
 - `PUT /decks/{deck_id}`: reparses and resolves the submitted decklist, updates deck metadata, appends a new active deck version, and returns the updated deck.
 - `DELETE /decks/{deck_id}`: deletes the deck and its associated deck version records.
 
@@ -66,7 +69,7 @@ Current collections:
 
 The API creates indexes for cached card lookup by `cards.name_key` and deck sorting by `decks.updated_at`.
 
-Deck versions are linear. Each import starts at version 1, each meaningful edit appends the next version number, and restoring an old version creates another new latest version rather than mutating the historical record. Saves that match the selected version do not create a new version. Basic matchup entries are stored on individual version documents, so they describe the deck state selected when the result was logged.
+Deck versions are linear. Each import starts at version 1, each meaningful edit appends the next version number, and restoring an old version creates another new latest version rather than mutating the historical record. Forking a version creates a separate deck that starts with its own version 1 copied from the selected source version. Saves that match the selected version do not create a new version. Basic matchup entries are stored on individual version documents, so they describe the deck state selected when the result was logged.
 
 ## Data Flow
 Deck import and update follow the same main flow:
@@ -82,6 +85,6 @@ Deck import and update follow the same main flow:
 The current codebase leaves room for several planned areas:
 
 - Legality checks need real format rules and surfaced route/client behavior.
-- Deck statistics can expand beyond the current mana curve and land-produced-color panels.
+- Deck statistics can expand beyond the current mana curve, land-produced-color, and card type breakdown panels.
 - Matchups and tournaments need richer persistence models, top-level API routes, notes, tournament history, and analysis workflows beyond the current basic per-version matchup log.
 - Version comparison can build on the durable linear version history.

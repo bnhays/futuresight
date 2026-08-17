@@ -21,6 +21,17 @@ def get_image_uri(raw: dict) -> str | None:
     return None
 
 
+def get_art_crop_uri(raw: dict) -> str | None:
+    if not raw:
+        return None
+    if "image_uris" in raw:
+        return raw["image_uris"].get("art_crop")
+    if raw.get("card_faces"):
+        first_face = raw["card_faces"][0]
+        return first_face.get("image_uris", {}).get("art_crop")
+    return None
+
+
 def normalize_card(raw: dict) -> dict[str, object] | None:
     if not raw:
         return None
@@ -36,6 +47,7 @@ def normalize_card(raw: dict) -> dict[str, object] | None:
         "produced_mana": raw.get("produced_mana", []),
         "legalities": raw.get("legalities", {}),
         "image_uri": get_image_uri(raw),
+        "art_crop_uri": get_art_crop_uri(raw),
         "scryfall_uri": raw.get("scryfall_uri"),
     }
 

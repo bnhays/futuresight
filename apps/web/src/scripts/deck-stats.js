@@ -53,6 +53,16 @@ export function renderLandColorProduction(production) {
   panel.className = "land-colors-panel";
   panel.setAttribute("aria-labelledby", "land-colors-heading");
 
+  const highestPercentage = Math.max(0, ...colors.map((item) => Number(item.percentage) || 0));
+  const highestColors = colors
+    .filter((item) => (Number(item.percentage) || 0) === highestPercentage)
+    .map((item) => String(item.color || "").toUpperCase())
+    .filter((color) => ["W", "U", "B", "R", "G"].includes(color));
+  if (highestColors.length) {
+    const accent = highestColors[Math.floor(Math.random() * highestColors.length)];
+    panel.dataset.landAccent = accent;
+  }
+
   const heading = document.createElement("h2");
   heading.id = "land-colors-heading";
   heading.textContent = "Land Colors";

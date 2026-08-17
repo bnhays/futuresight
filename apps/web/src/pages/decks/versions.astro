@@ -134,6 +134,46 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       return `${change.previous_quantity} -> ${change.quantity} ${change.name} (${formatSection(change.section)})`;
     }
 
+    function versionChangeCounts(changes) {
+      return changes.reduce(
+        (counts, change) => {
+          if (change.change_type === "added") {
+            counts.added += Number(change.quantity) || 0;
+          } else if (change.change_type === "removed") {
+            counts.removed += Number(change.previous_quantity) || 0;
+          } else if (change.change_type === "modified") {
+            const quantity = Number(change.quantity) || 0;
+            const previousQuantity = Number(change.previous_quantity) || 0;
+            counts.modified += Math.abs(quantity - previousQuantity) || 1;
+          }
+          return counts;
+        },
+        { added: 0, modified: 0, removed: 0 },
+      );
+    }
+
+    function renderVersionChangeBadges(version) {
+      const changes = version.changes || [];
+      const counts = versionChangeCounts(changes);
+      const badges = document.createElement("span");
+      badges.className = "version-change-badges";
+      badges.setAttribute("aria-label", `${counts.added} added, ${counts.modified} modified, ${counts.removed} removed`);
+
+      [
+        ["added", "+", counts.added],
+        ["modified", "~", counts.modified],
+        ["removed", "-", counts.removed],
+      ].forEach(([type, label, count]) => {
+        const badge = document.createElement("span");
+        badge.className = `version-change-badge version-change-badge-${type}`;
+        badge.title = `${count} ${type}`;
+        badge.textContent = `${label}${count}`;
+        badges.append(badge);
+      });
+
+      return badges;
+    }
+
     function renderVersionSummary(version) {
       const summary = document.createElement("div");
       summary.className = "version-change-summary";
@@ -162,6 +202,37 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       return summary;
     }
 
+    async function forkVersion(deck, version, forkButton) {
+      const defaultName = `${deck.name || "Untitled Deck"} Fork`;
+      const deckName = window.prompt("New deck name", defaultName);
+      if (deckName === null) return;
+
+      const trimmedName = deckName.trim();
+      if (!trimmedName) {
+        versionsMeta.textContent = "Enter a deck name to fork this version.";
+        return;
+      }
+
+      forkButton.disabled = true;
+
+      try {
+        const response = await fetch(`${API_URL}/decks/${deck.id}/versions/${version.id}/fork`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ name: trimmedName }),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          throw new Error(data.detail || "Could not fork version.");
+        }
+
+        window.location.href = `/decks/view?id=${encodeURIComponent(data.id)}`;
+      } catch (error) {
+        versionsMeta.textContent = error instanceof Error ? error.message : "Could not fork version.";
+        forkButton.disabled = false;
+      }
+    }
+
     function renderVersionRow(deck, version, item) {
       item.innerHTML = "";
 
@@ -183,6 +254,8 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       createdAt.textContent = `Saved ${formatFullDateTime(version.created_at)}`;
       createdAt.hidden = !version.created_at;
 
+      const changeBadges = renderVersionChangeBadges(version);
+
       const note = document.createElement("span");
       note.className = "recent-deck-description";
       note.textContent = version.change_note || "";
@@ -193,7 +266,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       meta.textContent = version.is_active ? "Latest" : "";
       meta.hidden = !version.is_active;
 
-      info.append(name, createdAt, note, meta);
+      info.append(name, createdAt, changeBadges, note, meta);
       link.append(info);
 
       const actions = document.createElement("span");
@@ -206,6 +279,10 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
       summaryButton.type = "button";
       summaryButton.textContent = "Summary";
       summaryButton.setAttribute("aria-expanded", "false");
+      let summaryPointerActivation = false;
+      summaryButton.addEventListener("pointerdown", () => {
+        summaryPointerActivation = true;
+      });
       summaryButton.addEventListener("click", (event) => {
         event.preventDefault();
         event.stopPropagation();
@@ -213,6 +290,20 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         summary.hidden = expanded;
         summaryButton.setAttribute("aria-expanded", String(!expanded));
         summaryButton.textContent = expanded ? "Summary" : "Hide";
+        if (summaryPointerActivation) {
+          summaryButton.blur();
+          summaryPointerActivation = false;
+        }
+      });
+
+      const forkButton = document.createElement("button");
+      forkButton.className = "action-button primary-button hollow-button deck-list-delete compact-action";
+      forkButton.type = "button";
+      forkButton.textContent = "Fork";
+      forkButton.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        forkVersion(deck, version, forkButton);
       });
 
       const editButton = document.createElement("button");
@@ -225,7 +316,7 @@ import BaseLayout from "../../layouts/BaseLayout.astro";
         renderVersionEditForm(deck, version, item);
       });
 
-      actions.append(summaryButton, editButton);
+      actions.append(summaryButton, forkButton, editButton);
       item.append(link, actions, summary);
     }
 
