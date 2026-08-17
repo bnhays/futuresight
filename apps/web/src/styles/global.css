@@ -401,7 +401,7 @@
 }
 
 [data-site-theme="kamigawa-neon"] {
-  --color-page-bg: #f4f8fb;
+  --color-page-bg: #e7f0f4;
   --color-header-bg: #e6f3f8;
   --color-header-border: #9fd9e7;
   --color-panel-bg: #ffffff;
@@ -428,11 +428,11 @@
   --theme-panel-accent: #d946ef;
   --mana-curve-bg: #e6f3f8;
   --mana-curve-border: #62cfe2;
-  --button-white: #ddf5fa;
-  --button-blue: #8ee6f5;
-  --button-black: #c5dbe2;
-  --button-red: #f0a7ef;
-  --button-green: #96d9c9;
+  --button-white: #c7edf4;
+  --button-blue: #7bdceb;
+  --button-black: #bdd3dc;
+  --button-red: #e89be8;
+  --button-green: #d993e8;
 }
 
 [data-site-theme="high-contrast"] {
@@ -626,11 +626,11 @@
   --theme-panel-accent: #f08cff;
   --mana-curve-bg: #112833;
   --mana-curve-border: #3fe4ff;
-  --button-white: #baf4ff;
+  --button-white: #8befff;
   --button-blue: #22d3ee;
-  --button-black: #b6cbd2;
-  --button-red: #f08cff;
-  --button-green: #62f0d0;
+  --button-black: #8fa8b3;
+  --button-red: #ff7ff0;
+  --button-green: #d76cff;
 }
 
 [data-theme="dark"][data-site-theme="high-contrast"] {
